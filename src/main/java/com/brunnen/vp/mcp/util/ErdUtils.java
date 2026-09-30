@@ -108,14 +108,4 @@ public final class ErdUtils {
     sql.append("\n);");
     return sql.toString();
   }
-
-  /**
-   * Validate a table name.
-   *
-   * @param name the name to validate
-   * @return true if valid
-   */
-  public static boolean isValidTableName(String name) {
-    return name != null && !name.trim().isEmpty() && name.trim().length() >= 2;
-  }
 }
