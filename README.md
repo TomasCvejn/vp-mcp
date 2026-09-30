@@ -25,7 +25,7 @@ The plugin includes an embedded MCP server that:
 - Runs on **port 2026** with SSE stream at `/sse` and messages at `/mcp/messages`
 - Provides **tool capabilities** for external MCP clients
 
-#### Available MCP Tools (51 total)
+#### Available MCP Tools (53 total)
 
 ##### Diagram Management (5 tools)
 - **listDiagrams()**: List all diagrams in the project
@@ -34,11 +34,13 @@ The plugin includes an embedded MCP server that:
 - **removeDiagramElement(diagramName, elementName)**: Remove an element from a diagram
 - **getElementCounts(diagramName)**: Count elements by type in a diagram
 
-##### Use Case Diagram (6 tools)
+##### Use Case Diagram (8 tools)
 - **createUseCaseDiagram(diagramName)**: Create new use case diagrams
 - **addActor(actorName, diagramName)**: Add actors to specific diagrams
 - **addUseCase(useCaseName, diagramName)**: Add use cases to diagrams
-- **addRelationship(sourceName, targetName, relationshipType)**: Create Include/Extend relationships
+- **addRelationship(sourceName, targetName, relationshipType)**: Create Include/Extend/Generalization/Association relationships
+- **removeUseCaseElement(diagramName, elementName)**: Delete an actor or use case (and its relationships) from the model
+- **removeUseCaseRelationship(diagramName, sourceName, targetName, relationshipType)**: Delete a relationship between two elements from the model
 - **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary
 - **generateUseCaseReport(diagramName)**: Generate use case analysis report
 
@@ -128,7 +130,7 @@ Once Visual Paradigm is running with the plugin:
 
 - **MCP Server Endpoint**: `http://localhost:2026/sse` (SSE)
 - **Server Name**: `visual-paradigm-mcp-server`
-- **Available Tools**: 51 diagram operations (Management, Use Case, Class, Project, ERD, Sequence)
+- **Available Tools**: 53 diagram operations (Management, Use Case, Class, Project, ERD, Sequence)
 
 #### Connecting with Claude or MCP Clients
 

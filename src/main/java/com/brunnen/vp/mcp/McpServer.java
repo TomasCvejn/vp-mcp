@@ -358,6 +358,7 @@ public class McpServer {
     }
 
     exchange.dispatch();
+    exchange.startBlocking();
     Executors.newSingleThreadExecutor()
         .submit(
             () -> {
