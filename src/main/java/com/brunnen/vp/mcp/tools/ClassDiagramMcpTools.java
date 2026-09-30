@@ -754,16 +754,16 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
                   }
                   opStr.append(op.getName()).append("(");
                   List<String> params = new ArrayList<>();
-                  Iterator<?> pIter = op.parameterIterator();
-                  while (pIter.hasNext()) {
-                    Object pObj = pIter.next();
-                    if (pObj instanceof IParameter) {
-                      IParameter p = (IParameter) pObj;
-                      String pStr = p.getName();
+                  Iterator<?> paramIter = op.parameterIterator();
+                  while (paramIter.hasNext()) {
+                    Object paramObj = paramIter.next();
+                    if (paramObj instanceof IParameter) {
+                      IParameter p = (IParameter) paramObj;
+                      String paramStr = p.getName();
                       if (p.getType() != null) {
-                        pStr += ":" + p.getType();
+                        paramStr += ":" + p.getType();
                       }
-                      params.add(pStr);
+                      params.add(paramStr);
                     }
                   }
                   opStr.append(String.join(", ", params)).append(")");

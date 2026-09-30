@@ -91,7 +91,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   @Tool(
       name = "addRelationship",
       description =
-          "Add a relationship (Include/Extend/Generalization/Association) between elements in a use case diagram")
+          "Add a relationship (Include/Extend/Generalization/Association) between elements "
+              + "in a use case diagram")
   public String addRelationship(
       String diagramName, String sourceName, String targetName, String relationshipType) {
     try {
