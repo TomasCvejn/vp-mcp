@@ -12,6 +12,7 @@ import com.vp.plugin.model.IActor;
 import com.vp.plugin.model.IAssociation;
 import com.vp.plugin.model.IAssociationEnd;
 import com.vp.plugin.model.IExtend;
+import com.vp.plugin.model.IExtensionPoint;
 import com.vp.plugin.model.IGeneralization;
 import com.vp.plugin.model.IInclude;
 import com.vp.plugin.model.IModelElement;
@@ -266,6 +267,50 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
           });
     } catch (Exception e) {
       return "Error removing relationship: " + e.getMessage();
+    }
+  }
+
+  @Tool(
+      name = "nameExtensionPoint",
+      description =
+          "Set the name of the extension point of an Extend relationship (owned by the base/main "
+              + "use case). Identify the extend by its two use cases (order-independent).")
+  public String nameExtensionPoint(
+      String diagramName, String extendingUseCase, String baseUseCase, String name) {
+    try {
+      return runOnEdt(
+          () -> {
+            IUseCaseDiagramUIModel diagram =
+                (IUseCaseDiagramUIModel)
+                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            if (name == null || name.trim().isEmpty()) {
+              return "Name is required";
+            }
+            List<IRelationship> matches =
+                findUseCaseRelationships(diagram, extendingUseCase, baseUseCase, "Extend");
+            if (matches.isEmpty()) {
+              return "No Extend found between '" + extendingUseCase + "' and '" + baseUseCase + "'";
+            }
+            IExtend extend = (IExtend) matches.get(0);
+            IExtensionPoint ep = extend.getExtensionPoint();
+            if (ep == null) {
+              ep = getModelElementFactory().createExtensionPoint();
+              extend.setExtensionPoint(ep);
+            }
+            ep.setName(name.trim());
+            return "Named extension point '"
+                + name.trim()
+                + "' on the extend between '"
+                + extendingUseCase
+                + "' and '"
+                + baseUseCase
+                + "'";
+          });
+    } catch (Exception e) {
+      return "Error naming extension point: " + e.getMessage();
     }
   }
 

@@ -25,7 +25,7 @@ The plugin includes an embedded MCP server that:
 - Runs on **port 2026** with SSE stream at `/sse` and messages at `/mcp/messages`
 - Provides **tool capabilities** for external MCP clients
 
-#### Available MCP Tools (54 total)
+#### Available MCP Tools (55 total)
 
 ##### Diagram Management (6 tools)
 - **listDiagrams()**: List all diagrams in the project
@@ -35,13 +35,14 @@ The plugin includes an embedded MCP server that:
 - **getElementCounts(diagramName)**: Count elements by type in a diagram
 - **addStereotype(diagramName, elementName, stereotype)**: Apply a stereotype (e.g. System, Time) to any element
 
-##### Use Case Diagram (8 tools)
+##### Use Case Diagram (9 tools)
 - **createUseCaseDiagram(diagramName)**: Create new use case diagrams
 - **addActor(actorName, diagramName)**: Add actors to specific diagrams
 - **addUseCase(useCaseName, diagramName)**: Add use cases to diagrams
 - **addRelationship(sourceName, targetName, relationshipType)**: Create Include/Extend/Generalization/Association/DirectedAssociation relationships (DirectedAssociation draws a source→target arrow)
 - **removeUseCaseElement(diagramName, elementName)**: Delete an actor or use case (and its relationships) from the model
 - **removeUseCaseRelationship(diagramName, sourceName, targetName, relationshipType)**: Delete a relationship between two elements from the model
+- **nameExtensionPoint(diagramName, extendingUseCase, baseUseCase, name)**: Name the extension point of an Extend relationship
 - **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary
 - **generateUseCaseReport(diagramName)**: Generate use case analysis report
 
@@ -131,7 +132,7 @@ Once Visual Paradigm is running with the plugin:
 
 - **MCP Server Endpoint**: `http://localhost:2026/sse` (SSE)
 - **Server Name**: `visual-paradigm-mcp-server`
-- **Available Tools**: 54 diagram operations (Management, Use Case, Class, Project, ERD, Sequence)
+- **Available Tools**: 55 diagram operations (Management, Use Case, Class, Project, ERD, Sequence)
 
 #### Connecting with Claude or MCP Clients
 
