@@ -38,7 +38,7 @@ The plugin includes an embedded MCP server that:
 - **createUseCaseDiagram(diagramName)**: Create new use case diagrams
 - **addActor(actorName, diagramName)**: Add actors to specific diagrams
 - **addUseCase(useCaseName, diagramName)**: Add use cases to diagrams
-- **addRelationship(sourceName, targetName, relationshipType)**: Create Include/Extend/Generalization/Association relationships
+- **addRelationship(sourceName, targetName, relationshipType)**: Create Include/Extend/Generalization/Association/DirectedAssociation relationships (DirectedAssociation draws a source→target arrow)
 - **removeUseCaseElement(diagramName, elementName)**: Delete an actor or use case (and its relationships) from the model
 - **removeUseCaseRelationship(diagramName, sourceName, targetName, relationshipType)**: Delete a relationship between two elements from the model
 - **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary
