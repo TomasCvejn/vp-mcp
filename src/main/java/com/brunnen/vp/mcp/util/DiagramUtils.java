@@ -81,23 +81,6 @@ public final class DiagramUtils {
     return null;
   }
 
-  /** Find all model elements of a given type. */
-  public static <T extends IModelElement> List<T> findAllModelElements(Class<T> type) {
-    List<T> result = new ArrayList<>();
-    IProject project = getProject();
-    if (project == null) {
-      return result;
-    }
-    Iterator<?> iter = project.allLevelModelElementIterator();
-    while (iter.hasNext()) {
-      Object obj = iter.next();
-      if (type.isInstance(obj)) {
-        result.add(type.cast(obj));
-      }
-    }
-    return result;
-  }
-
   /** Find all diagrams of a given type. */
   public static List<IDiagramUIModel> findAllDiagrams(Class<?> diagramType) {
     List<IDiagramUIModel> result = new ArrayList<>();
@@ -117,9 +100,5 @@ public final class DiagramUtils {
 
   public static void openDiagram(IDiagramUIModel diagram) {
     getDiagramManager().openDiagram(diagram);
-  }
-
-  public static boolean isValidName(String name) {
-    return name != null && !name.trim().isEmpty();
   }
 }

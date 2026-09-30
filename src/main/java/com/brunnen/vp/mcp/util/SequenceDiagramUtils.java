@@ -12,23 +12,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /** Utility class for sequence diagram operations. */
 public final class SequenceDiagramUtils {
 
   private SequenceDiagramUtils() {}
-
-  /**
-   * Get all sequence diagrams in the current project.
-   *
-   * @return list of sequence diagrams
-   */
-  public static List<IInteractionDiagramUIModel> getAllSequenceDiagrams() {
-    return DiagramUtils.findAllDiagrams(IInteractionDiagramUIModel.class).stream()
-        .map(d -> (IInteractionDiagramUIModel) d)
-        .collect(Collectors.toList());
-  }
 
   /**
    * Find a lifeline by name in a sequence diagram.
@@ -135,15 +123,5 @@ public final class SequenceDiagramUtils {
       }
     }
     return map;
-  }
-
-  /**
-   * Validate a lifeline name.
-   *
-   * @param name the name to validate
-   * @return true if valid
-   */
-  public static boolean isValidLifelineName(String name) {
-    return name != null && !name.trim().isEmpty() && name.trim().length() >= 2;
   }
 }

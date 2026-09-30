@@ -15,34 +15,6 @@ public final class ErdUtils {
   private ErdUtils() {}
 
   /**
-   * Get all ER diagrams in the current project.
-   *
-   * @return list of ER diagrams
-   */
-  public static List<IDiagramUIModel> getAllERDiagrams() {
-    return DiagramUtils.findAllDiagrams(IDiagramUIModel.class);
-  }
-
-  /**
-   * Find a table by name.
-   *
-   * @param name the table name
-   * @return the table, or null if not found
-   */
-  public static IDBTable findTableByName(String name) {
-    return DiagramUtils.findModelElementByName(name, IDBTable.class);
-  }
-
-  /**
-   * Get all tables in the current project.
-   *
-   * @return list of tables
-   */
-  public static List<IDBTable> getAllTables() {
-    return DiagramUtils.findAllModelElements(IDBTable.class);
-  }
-
-  /**
    * Get all tables in a specific ER diagram.
    *
    * @param diagram the ER diagram
@@ -107,15 +79,5 @@ public final class ErdUtils {
 
     sql.append("\n);");
     return sql.toString();
-  }
-
-  /**
-   * Validate a table name.
-   *
-   * @param name the name to validate
-   * @return true if valid
-   */
-  public static boolean isValidTableName(String name) {
-    return name != null && !name.trim().isEmpty() && name.trim().length() >= 2;
   }
 }
