@@ -7,10 +7,10 @@ the Visual Paradigm plugin, starting automatically when the plugin loads.
 
 ## Architecture
 
-- **Spring AI 1.1.0-M1**: Model Context Protocol server integration
+- **Undertow + Jackson**: Embedded HTTP server and JSON processing for the MCP server
 - **Visual Paradigm 17.2**: UML modeling platform integration
 - **Maven**: Build automation and dependency management
-- **MCP Transport**: Streamable HTTP communication with MCP clients
+- **MCP Transport**: SSE (Server-Sent Events) communication with MCP clients
 - **Visual Paradigm Plugin API**: Integration with Visual Paradigm's modeling capabilities
 - **JUnit & Mockito**: Comprehensive testing framework
 
@@ -22,19 +22,27 @@ The plugin includes an embedded MCP server that:
 
 - **Auto-starts** when Visual Paradigm plugin is loaded
 - **Auto-stops** when Visual Paradigm plugin is unloaded
-- Runs on **port 8080** with SSE endpoint `/mcp/messages`
+- Runs on **port 2026** with SSE stream at `/sse` and messages at `/mcp/messages`
 - Provides **tool capabilities** for external MCP clients
 
-#### Available MCP Tools (31 total)
+#### Available MCP Tools (51 total)
 
-##### Use Case Diagram (5 tools)
+##### Diagram Management (5 tools)
+- **listDiagrams()**: List all diagrams in the project
+- **getDiagramElements(diagramName)**: List elements of a diagram with details
+- **autoLayoutDiagram(diagramName)**: Apply automatic layout to a diagram
+- **removeDiagramElement(diagramName, elementName)**: Remove an element from a diagram
+- **getElementCounts(diagramName)**: Count elements by type in a diagram
+
+##### Use Case Diagram (6 tools)
 - **createUseCaseDiagram(diagramName)**: Create new use case diagrams
 - **addActor(actorName, diagramName)**: Add actors to specific diagrams
 - **addUseCase(useCaseName, diagramName)**: Add use cases to diagrams
 - **addRelationship(sourceName, targetName, relationshipType)**: Create Include/Extend relationships
+- **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary
 - **generateUseCaseReport(diagramName)**: Generate use case analysis report
 
-##### Class Diagram (12 tools)
+##### Class Diagram (22 tools)
 - **createClassDiagram(diagramName)**: Create new class diagrams
 - **addClass(diagramName, className)**: Add classes to diagrams
 - **addAttribute(className, attributeName, attributeType, visibility)**: Add attributes to classes
@@ -46,7 +54,23 @@ The plugin includes an embedded MCP server that:
 - **addDependency(diagramName, fromClass, toClass)**: Add dependency relationships
 - **addRealization(diagramName, fromClass, toClass)**: Add interface realization
 - **addInterface(diagramName, interfaceName)**: Add interfaces with stereotype
+- **addPackage(diagramName, packageName)**: Add packages to diagrams
+- **setClassColor(diagramName, className, color)**: Set a class box fill color
+- **setElementBounds(diagramName, elementName, x, y, width, height)**: Set element position and size
+- **addStereotypeToClasses(diagramName, classNames, stereotype)**: Apply a stereotype to classes
+- **removeRelationship(diagramName, fromClass, toClass)**: Remove a relationship model element
+- **setAssociationProperties(...)**: Edit association/aggregation/composition ends and roles
+- **getRelationshipDetails(diagramName)**: Return a JSON audit of classes and relationships
+- **rerouteConnectors(diagramName)**: Re-anchor all connectors after moving shapes
+- **layoutConnectorLabels(diagramName)**: Position multiplicity and association-name labels
+- **exportDiagramImage(diagramName, filePath)**: Export a diagram to a PNG image
 - **generateClassReport(diagramName)**: Generate class diagram analysis report
+
+##### Project (4 tools)
+- **newProject()**: Create a new, empty project
+- **saveProject()**: Save the current project
+- **saveProjectAs(filePath)**: Save the project to a new file (never overwrites an existing file)
+- **getProjectInfo()**: Return the project name and file path
 
 ##### ERD - Entity Relationship Diagram (7 tools)
 - **createErd(diagramName)**: Create new ER diagrams
@@ -75,7 +99,7 @@ The plugin includes an embedded MCP server that:
 
 - **Automatic Lifecycle Management**: MCP server starts/stops with plugin
 - **Error Handling**: Robust startup/shutdown with detailed logging
-- **Spring Boot Integration**: Full Spring framework capabilities within Visual Paradigm
+- **Embedded HTTP Server**: Undertow-based MCP server running inside the Visual Paradigm process
 
 ## Usage
 
@@ -107,9 +131,9 @@ Build, test and install with the `./run` command:
 
 Once Visual Paradigm is running with the plugin:
 
-- **MCP Server Endpoint**: `http://localhost:8080/mcp/messages` (SSE)
+- **MCP Server Endpoint**: `http://localhost:2026/sse` (SSE)
 - **Server Name**: `visual-paradigm-mcp-server`
-- **Available Tools**: 31 diagram operations (Use Case, Class, ERD, Sequence)
+- **Available Tools**: 51 diagram operations (Management, Use Case, Class, Project, ERD, Sequence)
 
 #### Connecting with Claude or MCP Clients
 
@@ -119,7 +143,7 @@ Configure your MCP client to connect to:
 {
   "transport": {
     "type": "sse",
-    "url": "http://localhost:8080/mcp/messages"
+    "url": "http://localhost:2026/sse"
   }
 }
 ```
@@ -148,7 +172,6 @@ Configure your MCP client to connect to:
 - **Unit and Integration Tests**: Comprehensive Mockito/JUnit tests for all components
 - **System Tests**: MCP Inspector protocol validation
 - **Manual Testing**: Visual Paradigm UI integration testing
-- **Spring Context Tests**: Verify MCP server configuration
 - **Tool Service Tests**: Validate all MCP tool implementations
 - **Plugin Lifecycle Tests**: Test integration with Visual Paradigm
 
@@ -176,19 +199,13 @@ Display all MCP features and their descriptions:
 
 **MCP Server Logging**: Check Visual Paradigm console output for:
 
-- `"MCP Server started on port 8080"` - successful startup
+- `"MCP Server started on port 2026"` - successful startup
 - `"MCP Server stopped"` - clean shutdown
 - Error messages if startup fails
 
-**Configuration**: Located in `src/main/resources/application-mcp.properties`
-
-```properties
-logging.level.org.springframework.ai.mcp=DEBUG
-logging.level.root=INFO
-```
+**Configuration**: The port is set in `VPMcpPlugin.java` (`mcpServer.setPort(2026)`).
 
 ### Support
 
 - **MCP Protocol**: [Model Context Protocol Specification](https://modelcontextprotocol.io/specification/2025-06-18/architecture)
-- **Spring AI**: [Spring AI MCP Documentation](https://docs.spring.io/spring-ai/reference/1.1/api/mcp/mcp-overview.html)
 - **Visual Paradigm**: [Plugin API Documentation](https://www.visual-paradigm.com/support/documents/pluginjavadoc/)
