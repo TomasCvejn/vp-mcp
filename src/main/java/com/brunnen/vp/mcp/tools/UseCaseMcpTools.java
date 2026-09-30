@@ -10,6 +10,7 @@ import com.vp.plugin.diagram.IShapeUIModel;
 import com.vp.plugin.diagram.IUseCaseDiagramUIModel;
 import com.vp.plugin.model.IActor;
 import com.vp.plugin.model.IAssociation;
+import com.vp.plugin.model.IAssociationEnd;
 import com.vp.plugin.model.IExtend;
 import com.vp.plugin.model.IGeneralization;
 import com.vp.plugin.model.IInclude;
@@ -95,7 +96,9 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               + "Include -> source=base (main), target=included (sub); "
               + "Extend -> source=extending (sub), target=extended (main, owns extension point); "
               + "Generalization -> source=child, target=parent; "
-              + "Association -> source=actor, target=use case")
+              + "Association -> plain line, no arrow; "
+              + "DirectedAssociation -> arrow from source to target "
+              + "(e.g. actor->use case, or use case->secondary actor)")
   public String addRelationship(
       String diagramName, String sourceName, String targetName, String relationshipType) {
     try {
@@ -154,16 +157,35 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               gen.setTo(source);
               dm.createConnector(diagram, gen, toElement, fromElement, null);
               return "Added Generalization from '" + sourceName + "' to '" + targetName + "'";
-            } else if ("Association".equalsIgnoreCase(relationshipType)) {
+            } else if ("Association".equalsIgnoreCase(relationshipType)
+                || "DirectedAssociation".equalsIgnoreCase(relationshipType)) {
+              boolean directed = "DirectedAssociation".equalsIgnoreCase(relationshipType);
               IAssociation assoc = getModelElementFactory().createAssociation();
               assoc.setFrom(source);
               assoc.setTo(target);
+              if (directed) {
+                // Arrow points from source to target: target end navigable, source end not.
+                IAssociationEnd fromEnd = (IAssociationEnd) assoc.getFromEnd();
+                IAssociationEnd toEnd = (IAssociationEnd) assoc.getToEnd();
+                if (fromEnd != null) {
+                  fromEnd.setNavigable(IAssociationEnd.NAVIGABLE_NON_NAVIGABLE);
+                }
+                if (toEnd != null) {
+                  toEnd.setNavigable(IAssociationEnd.NAVIGABLE_NAVIGABLE);
+                }
+              }
               dm.createConnector(diagram, assoc, fromElement, toElement, null);
-              return "Added Association from '" + sourceName + "' to '" + targetName + "'";
+              return "Added "
+                  + (directed ? "DirectedAssociation" : "Association")
+                  + " from '"
+                  + sourceName
+                  + "' to '"
+                  + targetName
+                  + "'";
             } else {
               return "Unknown relationship type: "
                   + relationshipType
-                  + ". Use Include, Extend, Generalization, or Association.";
+                  + ". Use Include, Extend, Generalization, Association, or DirectedAssociation.";
             }
           });
     } catch (Exception e) {
@@ -283,6 +305,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
           typeMatch = model instanceof IGeneralization;
           break;
         case "association":
+        case "directedassociation":
           typeMatch = model instanceof IAssociation;
           break;
         default:
