@@ -630,6 +630,39 @@ public abstract class AbstractDiagramMcpTools {
     }
   }
 
+  @Tool(
+      name = "addStereotype",
+      description =
+          "Apply a stereotype (e.g. System, Time) to an element (actor, use case, class, "
+              + "table, ...) by name on a diagram")
+  public String addStereotype(String diagramName, String elementName, String stereotype) {
+    try {
+      return runOnEdt(
+          () -> {
+            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            if (stereotype == null || stereotype.trim().isEmpty()) {
+              return "Stereotype is required";
+            }
+            IDiagramElement de = findDiagramElementByName(diagram, elementName);
+            if (de == null || de.getModelElement() == null) {
+              return "Element not found on diagram: " + elementName;
+            }
+            IModelElement model = de.getModelElement();
+            String stereo = stereotype.trim();
+            if (model.hasStereotype(stereo)) {
+              return "'" + elementName + "' already has stereotype '" + stereo + "'";
+            }
+            model.addStereotype(stereo);
+            return "Added stereotype '" + stereo + "' to '" + elementName + "'";
+          });
+    } catch (Exception e) {
+      return "Error adding stereotype: " + e.getMessage();
+    }
+  }
+
   // --- Type Name Helper ---
 
   private static String getSemanticTypeName(IModelElement model) {
