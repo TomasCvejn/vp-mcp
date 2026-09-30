@@ -91,8 +91,11 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   @Tool(
       name = "addRelationship",
       description =
-          "Add a relationship (Include/Extend/Generalization/Association) between elements "
-              + "in a use case diagram")
+          "Add a relationship between elements in a use case diagram. Direction by type: "
+              + "Include -> source=base (main), target=included (sub); "
+              + "Extend -> source=extending (sub), target=extended (main, owns extension point); "
+              + "Generalization -> source=child, target=parent; "
+              + "Association -> source=actor, target=use case")
   public String addRelationship(
       String diagramName, String sourceName, String targetName, String relationshipType) {
     try {
@@ -138,14 +141,14 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               dm.createConnector(diagram, include, fromElement, toElement, null);
               return "Added Include from '" + sourceName + "' to '" + targetName + "'";
             } else if ("Extend".equalsIgnoreCase(relationshipType)) {
+              // VP puts the extension point on the extend's `from`, so from = base (target).
               IExtend extend = getModelElementFactory().createExtend();
-              extend.setFrom(source);
-              extend.setTo(target);
-              dm.createConnector(diagram, extend, fromElement, toElement, null);
+              extend.setFrom(target);
+              extend.setTo(source);
+              dm.createConnector(diagram, extend, toElement, fromElement, null);
               return "Added Extend from '" + sourceName + "' to '" + targetName + "'";
             } else if ("Generalization".equalsIgnoreCase(relationshipType)) {
-              // VP stores a generalization as from = general (parent), to = specific (child), and
-              // draws the hollow triangle at from. source is the child, target the parent.
+              // VP draws the triangle at the generalization's `from`, so from = parent (target).
               IGeneralization gen = getModelElementFactory().createGeneralization();
               gen.setFrom(target);
               gen.setTo(source);

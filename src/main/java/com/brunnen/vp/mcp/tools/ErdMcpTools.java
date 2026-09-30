@@ -94,6 +94,7 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
             col.setPrimaryKey(isPrimaryKey);
             col.setNullable(isNullable);
             table.addDBColumn(col);
+            fitShapesForModel(table);
 
             return "Added column '" + columnName + "' to table '" + tableName + "'";
           });
