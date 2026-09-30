@@ -90,11 +90,6 @@ The plugin includes an embedded MCP server that:
 - **addCombinedFragment(diagramName, operator, guard, coveredLifelines)**: Add alt/opt/loop fragments
 - **generateSequenceReport(diagramName)**: Generate sequence diagram analysis report
 
-### Plugin User Interface
-
-- **Toggle MCP Server**: Start/stop the MCP server from Visual Paradigm toolbar
-- **Server Status**: View detailed MCP server status and capabilities
-
 ### Plugin Integration
 
 - **Automatic Lifecycle Management**: MCP server starts/stops with plugin
