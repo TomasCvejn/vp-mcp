@@ -144,10 +144,12 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               dm.createConnector(diagram, extend, fromElement, toElement, null);
               return "Added Extend from '" + sourceName + "' to '" + targetName + "'";
             } else if ("Generalization".equalsIgnoreCase(relationshipType)) {
+              // VP stores a generalization as from = general (parent), to = specific (child), and
+              // draws the hollow triangle at from. source is the child, target the parent.
               IGeneralization gen = getModelElementFactory().createGeneralization();
-              gen.setFrom(source);
-              gen.setTo(target);
-              dm.createConnector(diagram, gen, fromElement, toElement, null);
+              gen.setFrom(target);
+              gen.setTo(source);
+              dm.createConnector(diagram, gen, toElement, fromElement, null);
               return "Added Generalization from '" + sourceName + "' to '" + targetName + "'";
             } else if ("Association".equalsIgnoreCase(relationshipType)) {
               IAssociation assoc = getModelElementFactory().createAssociation();
