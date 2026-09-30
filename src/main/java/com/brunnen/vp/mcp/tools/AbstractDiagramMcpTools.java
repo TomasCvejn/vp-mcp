@@ -216,11 +216,11 @@ public abstract class AbstractDiagramMcpTools {
     if (diagram == null) {
       IProject project = ApplicationManager.instance().getProjectManager().getProject();
       if (project != null) {
-        Iterator<?> dIter = project.diagramIterator();
-        while (dIter.hasNext()) {
-          Object dObj = dIter.next();
-          if (dObj instanceof IDiagramUIModel) {
-            T result = findModelElementInDiagram((IDiagramUIModel) dObj, name, type);
+        Iterator<?> diagramIter = project.diagramIterator();
+        while (diagramIter.hasNext()) {
+          Object diagramObj = diagramIter.next();
+          if (diagramObj instanceof IDiagramUIModel) {
+            T result = findModelElementInDiagram((IDiagramUIModel) diagramObj, name, type);
             if (result != null) {
               return result;
             }
@@ -312,7 +312,8 @@ public abstract class AbstractDiagramMcpTools {
   @Tool(
       name = "listDiagrams",
       description =
-          "List all diagrams in the project, optionally filtered by type (UseCase, Class, Sequence, ER)")
+          "List all diagrams in the project, optionally filtered by type "
+              + "(UseCase, Class, Sequence, ER)")
   public String listDiagrams(String type) {
     try {
       return runOnEdt(
@@ -350,7 +351,8 @@ public abstract class AbstractDiagramMcpTools {
   @Tool(
       name = "getDiagramElements",
       description =
-          "Get all elements (shapes and connectors) on a diagram with their names, types, details, and positions")
+          "Get all elements (shapes and connectors) on a diagram with their names, types, "
+              + "details, and positions")
   public String getDiagramElements(String diagramName) {
     try {
       return runOnEdt(
@@ -441,16 +443,16 @@ public abstract class AbstractDiagramMcpTools {
                     }
                     opStr.append(op.getName()).append("(");
                     List<String> params = new ArrayList<>();
-                    Iterator<?> pIter = op.parameterIterator();
-                    while (pIter.hasNext()) {
-                      Object pObj = pIter.next();
-                      if (pObj instanceof IParameter) {
-                        IParameter p = (IParameter) pObj;
-                        String pStr = p.getName();
+                    Iterator<?> paramIter = op.parameterIterator();
+                    while (paramIter.hasNext()) {
+                      Object paramObj = paramIter.next();
+                      if (paramObj instanceof IParameter) {
+                        IParameter p = (IParameter) paramObj;
+                        String paramStr = p.getName();
                         if (p.getType() != null) {
-                          pStr += ":" + p.getType();
+                          paramStr += ":" + p.getType();
                         }
-                        params.add(pStr);
+                        params.add(paramStr);
                       }
                     }
                     opStr.append(String.join(", ", params)).append(")");

@@ -14,6 +14,7 @@ public class StandaloneServer {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
+  /** Start the standalone MCP proxy server, fetching tool metadata from a running VP instance. */
   public static void main(String[] args) throws Exception {
     int port = Integer.parseInt(System.getenv().getOrDefault("MCP_PORT", "2026"));
     String vpBaseUrl =

@@ -401,16 +401,19 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
                   StringBuilder fragStr = new StringBuilder();
                   // Operator
                   String op = cf.getInteractionOperator();
-                  if (ICombinedFragment.INTERACTION_OPERATOR_ALT.equals(op)) fragStr.append("alt");
-                  else if (ICombinedFragment.INTERACTION_OPERATOR_OPT.equals(op))
+                  if (ICombinedFragment.INTERACTION_OPERATOR_ALT.equals(op)) {
+                    fragStr.append("alt");
+                  } else if (ICombinedFragment.INTERACTION_OPERATOR_OPT.equals(op)) {
                     fragStr.append("opt");
-                  else if (ICombinedFragment.INTERACTION_OPERATOR_LOOP.equals(op))
+                  } else if (ICombinedFragment.INTERACTION_OPERATOR_LOOP.equals(op)) {
                     fragStr.append("loop");
-                  else if (ICombinedFragment.INTERACTION_OPERATOR_BREAK.equals(op))
+                  } else if (ICombinedFragment.INTERACTION_OPERATOR_BREAK.equals(op)) {
                     fragStr.append("break");
-                  else if (ICombinedFragment.INTERACTION_OPERATOR_PAR.equals(op))
+                  } else if (ICombinedFragment.INTERACTION_OPERATOR_PAR.equals(op)) {
                     fragStr.append("par");
-                  else fragStr.append(op);
+                  } else {
+                    fragStr.append(op);
+                  }
 
                   // Guard from first operand
                   java.util.Iterator<?> opIter = cf.operandIterator();

@@ -14,6 +14,7 @@ public class ToolDefinition {
   private final Object target;
   private final Method method;
 
+  /** Create a tool definition bound to a local method to invoke. */
   public ToolDefinition(
       String name, String description, ObjectNode inputSchema, Object target, Method method) {
     this.name = name;
@@ -93,11 +94,21 @@ public class ToolDefinition {
   }
 
   private static Object getDefaultValue(Class<?> type) {
-    if (type == int.class) return 0;
-    if (type == long.class) return 0L;
-    if (type == boolean.class) return false;
-    if (type == double.class) return 0.0;
-    if (type == float.class) return 0.0f;
+    if (type == int.class) {
+      return 0;
+    }
+    if (type == long.class) {
+      return 0L;
+    }
+    if (type == boolean.class) {
+      return false;
+    }
+    if (type == double.class) {
+      return 0.0;
+    }
+    if (type == float.class) {
+      return 0.0f;
+    }
     return null;
   }
 

@@ -9,7 +9,9 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface Tool {
+  /** The tool name exposed to MCP clients; defaults to the method name when empty. */
   String name() default "";
 
+  /** Human-readable description of what the tool does, shown to MCP clients. */
   String description() default "";
 }

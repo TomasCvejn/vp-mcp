@@ -19,7 +19,7 @@ public final class ErdUtils {
    *
    * @return list of ER diagrams
    */
-  public static List<IDiagramUIModel> getAllERDiagrams() {
+  public static List<IDiagramUIModel> getAllErDiagrams() {
     return DiagramUtils.findAllDiagrams(IDiagramUIModel.class);
   }
 
