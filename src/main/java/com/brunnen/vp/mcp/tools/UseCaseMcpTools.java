@@ -172,6 +172,130 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   }
 
   @Tool(
+      name = "removeUseCaseElement",
+      description =
+          "Delete an actor or use case (and its relationships) from the MODEL by name, scoped to "
+              + "the given use case diagram")
+  public String removeUseCaseElement(String diagramName, String elementName) {
+    try {
+      return runOnEdt(
+          () -> {
+            IUseCaseDiagramUIModel diagram =
+                (IUseCaseDiagramUIModel)
+                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            IModelElement element = findModelElement(elementName, IUseCase.class, diagram);
+            if (element == null) {
+              element = findModelElement(elementName, IActor.class, diagram);
+            }
+            if (element == null) {
+              return "Element not found on diagram: " + elementName;
+            }
+            element.delete();
+            return "Removed '" + elementName + "' from the model";
+          });
+    } catch (Exception e) {
+      return "Error removing element: " + e.getMessage();
+    }
+  }
+
+  @Tool(
+      name = "removeUseCaseRelationship",
+      description =
+          "Delete relationship(s) between two elements on a use case diagram from the MODEL. "
+              + "relationshipType: Include, Extend, Generalization or Association. Matches either "
+              + "direction, so source/target order does not matter")
+  public String removeUseCaseRelationship(
+      String diagramName, String sourceName, String targetName, String relationshipType) {
+    try {
+      return runOnEdt(
+          () -> {
+            IUseCaseDiagramUIModel diagram =
+                (IUseCaseDiagramUIModel)
+                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            List<IRelationship> matches =
+                findUseCaseRelationships(diagram, sourceName, targetName, relationshipType);
+            if (matches.isEmpty()) {
+              return "No "
+                  + relationshipType
+                  + " found between '"
+                  + sourceName
+                  + "' and '"
+                  + targetName
+                  + "'";
+            }
+            for (IRelationship rel : matches) {
+              rel.delete();
+            }
+            return "Removed "
+                + matches.size()
+                + " "
+                + relationshipType
+                + " between '"
+                + sourceName
+                + "' and '"
+                + targetName
+                + "'";
+          });
+    } catch (Exception e) {
+      return "Error removing relationship: " + e.getMessage();
+    }
+  }
+
+  /** Relationships of the given type between two named elements, matching either direction. */
+  private List<IRelationship> findUseCaseRelationships(
+      IUseCaseDiagramUIModel diagram, String nameA, String nameB, String relationshipType) {
+    String type =
+        relationshipType == null ? "" : relationshipType.trim().toLowerCase(java.util.Locale.ROOT);
+    List<IRelationship> result = new ArrayList<>();
+    Iterator<?> iter = diagram.diagramElementIterator();
+    while (iter.hasNext()) {
+      Object obj = iter.next();
+      if (!(obj instanceof IDiagramElement)) {
+        continue;
+      }
+      IModelElement model = ((IDiagramElement) obj).getModelElement();
+      if (!(model instanceof IRelationship) || result.contains(model)) {
+        continue;
+      }
+      IRelationship rel = (IRelationship) model;
+      String from = rel.getFrom() != null ? rel.getFrom().getName() : null;
+      String to = rel.getTo() != null ? rel.getTo().getName() : null;
+      boolean endpointsMatch =
+          (nameA.equals(from) && nameB.equals(to)) || (nameA.equals(to) && nameB.equals(from));
+      if (!endpointsMatch) {
+        continue;
+      }
+      boolean typeMatch;
+      switch (type) {
+        case "include":
+          typeMatch = model instanceof IInclude;
+          break;
+        case "extend":
+          typeMatch = model instanceof IExtend;
+          break;
+        case "generalization":
+          typeMatch = model instanceof IGeneralization;
+          break;
+        case "association":
+          typeMatch = model instanceof IAssociation;
+          break;
+        default:
+          typeMatch = false;
+      }
+      if (typeMatch) {
+        result.add(rel);
+      }
+    }
+    return result;
+  }
+
+  @Tool(
       name = "addSystemBoundary",
       description =
           "Wrap all use cases of a use case diagram in a labeled system boundary rectangle "
