@@ -25,14 +25,15 @@ The plugin includes an embedded MCP server that:
 - Runs on **port 2026** with SSE stream at `/sse` and messages at `/mcp/messages`
 - Provides **tool capabilities** for external MCP clients
 
-#### Available MCP Tools (53 total)
+#### Available MCP Tools (54 total)
 
-##### Diagram Management (5 tools)
+##### Diagram Management (6 tools)
 - **listDiagrams()**: List all diagrams in the project
 - **getDiagramElements(diagramName)**: List elements of a diagram with details
 - **autoLayoutDiagram(diagramName)**: Apply automatic layout to a diagram
 - **removeDiagramElement(diagramName, elementName)**: Remove an element from a diagram
 - **getElementCounts(diagramName)**: Count elements by type in a diagram
+- **addStereotype(diagramName, elementName, stereotype)**: Apply a stereotype (e.g. System, Time) to any element
 
 ##### Use Case Diagram (8 tools)
 - **createUseCaseDiagram(diagramName)**: Create new use case diagrams
@@ -130,7 +131,7 @@ Once Visual Paradigm is running with the plugin:
 
 - **MCP Server Endpoint**: `http://localhost:2026/sse` (SSE)
 - **Server Name**: `visual-paradigm-mcp-server`
-- **Available Tools**: 53 diagram operations (Management, Use Case, Class, Project, ERD, Sequence)
+- **Available Tools**: 54 diagram operations (Management, Use Case, Class, Project, ERD, Sequence)
 
 #### Connecting with Claude or MCP Clients
 
