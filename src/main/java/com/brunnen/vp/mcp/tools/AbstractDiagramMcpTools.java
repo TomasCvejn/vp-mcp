@@ -158,6 +158,32 @@ public abstract class AbstractDiagramMcpTools {
   }
 
   /**
+   * Grow every on-diagram shape of this model element to fit its content. Call after adding
+   * attributes/operations/columns so class and table boxes are not clipped to their initial size.
+   *
+   * @param element the model element whose shapes should be refitted
+   */
+  protected void fitShapesForModel(IModelElement element) {
+    if (element == null) {
+      return;
+    }
+    IProject project = ApplicationManager.instance().getProjectManager().getProject();
+    if (project == null) {
+      return;
+    }
+    Iterator<?> diagramIter = project.diagramIterator();
+    while (diagramIter.hasNext()) {
+      Object diagramObj = diagramIter.next();
+      if (diagramObj instanceof IDiagramUIModel) {
+        IDiagramElement de = findDiagramElementByModel((IDiagramUIModel) diagramObj, element);
+        if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
+          ((com.vp.plugin.diagram.IShapeUIModel) de).fitSize();
+        }
+      }
+    }
+  }
+
+  /**
    * Find a diagram element by its model element name on a specific diagram. Diagram-scoped only —
    * does not check the global registry to avoid cross-diagram mismatches.
    *

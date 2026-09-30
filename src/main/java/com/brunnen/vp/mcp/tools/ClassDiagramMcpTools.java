@@ -241,6 +241,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
               attr.setVisibility(visibility.trim());
             }
             cls.addAttribute(attr);
+            fitShapesForModel(cls);
 
             return "Added attribute '" + attributeName + "' to class '" + className + "'";
           });
@@ -295,6 +296,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
               }
             }
             cls.addOperation(op);
+            fitShapesForModel(cls);
 
             return "Added operation '" + operationName + "' to class '" + className + "'";
           });
