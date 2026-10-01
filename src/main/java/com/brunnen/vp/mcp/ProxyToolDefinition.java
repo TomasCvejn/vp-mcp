@@ -43,8 +43,10 @@ public class ProxyToolDefinition extends ToolDefinition {
     }
 
     int code = conn.getResponseCode();
-    InputStream is = code >= 400 ? conn.getErrorStream() : conn.getInputStream();
-    String body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+    String body;
+    try (InputStream is = code >= 400 ? conn.getErrorStream() : conn.getInputStream()) {
+      body = new String(is.readAllBytes(), StandardCharsets.UTF_8);
+    }
 
     JsonNode response = MAPPER.readTree(body);
     if (response.has("error") && !response.get("error").isNull()) {

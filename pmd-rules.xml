@@ -15,4 +15,11 @@
         <exclude name="GuardLogStatement"/>
     </rule>
 
+    <!-- Allow empty catch blocks that carry an explanatory comment (e.g. client disconnects). -->
+    <rule ref="category/java/errorprone.xml/EmptyCatchBlock">
+        <properties>
+            <property name="allowCommentedBlocks" value="true"/>
+        </properties>
+    </rule>
+
 </ruleset>

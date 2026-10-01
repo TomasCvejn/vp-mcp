@@ -419,8 +419,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             if (sysDe instanceof IShapeUIModel) {
               IShapeUIModel shape = (IShapeUIModel) sysDe;
               shape.setCustomText(systemName);
-              shape.setBounds(
-                  minX - pad, minY - pad, (maxX - minX) + 2 * pad, (maxY - minY) + 2 * pad);
+              shape.setBounds(minX - pad, minY - pad, maxX - minX + 2 * pad, maxY - minY + 2 * pad);
               shape.sendToBack();
             }
 
@@ -508,8 +507,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                 IDiagramElement de = (IDiagramElement) obj;
                 IModelElement model = de.getModelElement();
                 String displayName = model.getName();
-                if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
-                  String caption = ((com.vp.plugin.diagram.IShapeUIModel) de).getCustomText();
+                if (de instanceof IShapeUIModel) {
+                  String caption = ((IShapeUIModel) de).getCustomText();
                   if (caption != null && !caption.isEmpty()) {
                     displayName = caption;
                   }
