@@ -364,8 +364,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       name = "addSystemBoundary",
       description =
           "Wrap all use cases of a use case diagram in a labeled system boundary rectangle "
-              + "(the module box). Call AFTER autoLayoutDiagram so the box encloses the laid-out "
-              + "use cases; actors stay outside.")
+              + "and move actors outside it: primary (initiating) actors left, secondary "
+              + "(system-called) actors right. Call AFTER autoLayoutDiagram.")
   public String addSystemBoundary(String diagramName, String systemName) {
     try {
       return runOnEdt(
@@ -377,8 +377,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            // Collect use case shapes and compute their bounding box.
+            // Collect use case shapes (for the bounding box) and actor shapes (to place outside).
             List<IUseCase> useCases = new ArrayList<>();
+            List<IDiagramElement> actorDes = new ArrayList<>();
+            List<IAssociation> associations = new ArrayList<>();
             int minX = Integer.MAX_VALUE;
             int minY = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE;
@@ -388,12 +390,17 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               Object obj = iter.next();
               if (obj instanceof IDiagramElement) {
                 IDiagramElement de = (IDiagramElement) obj;
-                if (de.getModelElement() instanceof IUseCase) {
-                  useCases.add((IUseCase) de.getModelElement());
+                IModelElement model = de.getModelElement();
+                if (model instanceof IUseCase) {
+                  useCases.add((IUseCase) model);
                   minX = Math.min(minX, de.getX());
                   minY = Math.min(minY, de.getY());
                   maxX = Math.max(maxX, de.getX() + de.getWidth());
                   maxY = Math.max(maxY, de.getY() + de.getHeight());
+                } else if (model instanceof IActor) {
+                  actorDes.add(de);
+                } else if (model instanceof IAssociation) {
+                  associations.add((IAssociation) model);
                 }
               }
             }
@@ -407,14 +414,59 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               system.addUseCase(uc);
             }
 
+            int pad = 40;
             IDiagramElement sysDe = getDiagramManager().createDiagramElement(diagram, system);
             if (sysDe instanceof IShapeUIModel) {
               IShapeUIModel shape = (IShapeUIModel) sysDe;
               shape.setCustomText(systemName);
-              int pad = 40;
               shape.setBounds(
                   minX - pad, minY - pad, (maxX - minX) + 2 * pad, (maxY - minY) + 2 * pad);
               shape.sendToBack();
+            }
+
+            // Move actors outside the box: primary (initiators) left, secondary (system-called)
+            // right, each stacked vertically.
+            int boxLeft = minX - pad;
+            int boxRight = maxX + pad;
+            int gap = 70;
+            int leftY = minY - pad;
+            int rightY = minY - pad;
+            for (IDiagramElement actorDe : actorDes) {
+              IModelElement actorModel = actorDe.getModelElement();
+              String actorName = actorModel.getName();
+              // Secondary = a use case points a navigable arrow at the actor (system calls it),
+              // or it carries the «System» stereotype. Everything else is a primary actor.
+              boolean secondary = actorModel.hasStereotype("System");
+              for (IAssociation a : associations) {
+                IModelElement fromM = a.getFrom();
+                IModelElement toM = a.getTo();
+                String fromN = fromM != null ? fromM.getName() : null;
+                String toN = toM != null ? toM.getName() : null;
+                IAssociationEnd actorEnd = null;
+                IModelElement otherM = null;
+                if (actorName != null && actorName.equals(fromN)) {
+                  actorEnd = (IAssociationEnd) a.getFromEnd();
+                  otherM = toM;
+                } else if (actorName != null && actorName.equals(toN)) {
+                  actorEnd = (IAssociationEnd) a.getToEnd();
+                  otherM = fromM;
+                }
+                if (actorEnd != null
+                    && otherM instanceof IUseCase
+                    && actorEnd.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE) {
+                  secondary = true;
+                  break;
+                }
+              }
+              int w = actorDe.getWidth();
+              int h = actorDe.getHeight();
+              if (secondary) {
+                actorDe.setBounds(boxRight + gap, rightY, w, h);
+                rightY += h + 40;
+              } else {
+                actorDe.setBounds(boxLeft - gap - w, leftY, w, h);
+                leftY += h + 40;
+              }
             }
 
             return "Added system boundary '"
