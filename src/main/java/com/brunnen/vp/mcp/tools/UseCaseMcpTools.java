@@ -314,6 +314,60 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     }
   }
 
+  @Tool(
+      name = "nameUseCaseRelationship",
+      description =
+          "Set the name/label of relationship(s) between two elements on a use case diagram "
+              + "(e.g. to denote timing on an association). relationshipType: Include, Extend, "
+              + "Generalization or Association. Matches either direction; pass an empty name to "
+              + "clear the label.")
+  public String nameUseCaseRelationship(
+      String diagramName,
+      String sourceName,
+      String targetName,
+      String relationshipType,
+      String name) {
+    try {
+      return runOnEdt(
+          () -> {
+            IUseCaseDiagramUIModel diagram =
+                (IUseCaseDiagramUIModel)
+                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            List<IRelationship> matches =
+                findUseCaseRelationships(diagram, sourceName, targetName, relationshipType);
+            if (matches.isEmpty()) {
+              return "No "
+                  + relationshipType
+                  + " found between '"
+                  + sourceName
+                  + "' and '"
+                  + targetName
+                  + "'";
+            }
+            String label = name == null ? "" : name.trim();
+            for (IRelationship rel : matches) {
+              rel.setName(label);
+            }
+            return "Named "
+                + matches.size()
+                + " "
+                + relationshipType
+                + " between '"
+                + sourceName
+                + "' and '"
+                + targetName
+                + "' to '"
+                + label
+                + "'";
+          });
+    } catch (Exception e) {
+      return "Error naming relationship: " + e.getMessage();
+    }
+  }
+
   /** Relationships of the given type between two named elements, matching either direction. */
   private List<IRelationship> findUseCaseRelationships(
       IUseCaseDiagramUIModel diagram, String nameA, String nameB, String relationshipType) {
