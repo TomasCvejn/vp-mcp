@@ -97,8 +97,9 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               + "Include -> source=base (main), target=included (sub); "
               + "Extend -> source=extending (sub), target=extended (main, owns extension point); "
               + "Generalization -> source=child, target=parent; "
-              + "Association -> plain line, no arrow; "
-              + "DirectedAssociation -> arrow from source to target "
+              + "Association -> plain line, no arrow (DEFAULT for actor<->use case); "
+              + "DirectedAssociation -> arrow from source to target, use ONLY when the "
+              + "interaction is genuinely one-directional "
               + "(e.g. actor->use case, or use case->secondary actor)")
   public String addRelationship(
       String diagramName, String sourceName, String targetName, String relationshipType) {
@@ -165,8 +166,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               assoc.setFrom(source);
               assoc.setTo(target);
               if (directed) {
-                // Arrow on the target end only; leave the source end unspecified so it stays a
-                // plain line end (setting it non-navigable would draw an "x").
+                IAssociationEnd fromEnd = (IAssociationEnd) assoc.getFromEnd();
+                if (fromEnd != null) {
+                  fromEnd.setNavigable(IAssociationEnd.NAVIGABLE_UNSPECIFIED);
+                }
                 IAssociationEnd toEnd = (IAssociationEnd) assoc.getToEnd();
                 if (toEnd != null) {
                   toEnd.setNavigable(IAssociationEnd.NAVIGABLE_NAVIGABLE);

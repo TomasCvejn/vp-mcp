@@ -30,6 +30,10 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
   activation bars (use-case and sequence diagrams) via `applyConventionalFill`. Class boxes and
   ERD tables keep Visual Paradigm's default white — matching the reference exports in
   `exports/services/screenshots` and `exports/account/screenshots`.
+- **DirectedAssociation navigability**: `addRelationship(... DirectedAssociation)` now pins the
+  source end to `NAVIGABLE_UNSPECIFIED` (VP defaults a fresh end to navigable). Without this both
+  ends read as navigable, so `addSystemBoundary` misclassified every primary actor as secondary and
+  stacked all actors on one side.
 - **`addSystemBoundary(diagramName, systemName)`** wraps all use cases of a UC diagram in a
   labeled system rectangle (the module box). Call it AFTER `autoLayoutDiagram` so the box encloses
   the laid-out use cases; it computes the use-case bounding box, reparents the use cases into an
