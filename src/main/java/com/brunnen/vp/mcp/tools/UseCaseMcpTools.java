@@ -165,12 +165,9 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               assoc.setFrom(source);
               assoc.setTo(target);
               if (directed) {
-                // Arrow points from source to target: target end navigable, source end not.
-                IAssociationEnd fromEnd = (IAssociationEnd) assoc.getFromEnd();
+                // Arrow on the target end only; leave the source end unspecified so it stays a
+                // plain line end (setting it non-navigable would draw an "x").
                 IAssociationEnd toEnd = (IAssociationEnd) assoc.getToEnd();
-                if (fromEnd != null) {
-                  fromEnd.setNavigable(IAssociationEnd.NAVIGABLE_NON_NAVIGABLE);
-                }
                 if (toEnd != null) {
                   toEnd.setNavigable(IAssociationEnd.NAVIGABLE_NAVIGABLE);
                 }
