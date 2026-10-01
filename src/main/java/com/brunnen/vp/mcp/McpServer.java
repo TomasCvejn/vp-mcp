@@ -10,6 +10,7 @@ import io.undertow.server.HttpServerExchange;
 import io.undertow.util.Headers;
 import io.undertow.util.HttpString;
 import io.undertow.util.Methods;
+import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -27,6 +28,8 @@ import java.util.concurrent.Executors;
 public class McpServer {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
+  // Bind on all interfaces; this is a listen address, not a remote endpoint.
+  private static final String BIND_ADDRESS = "0.0.0.0"; // NOPMD AvoidUsingHardCodedIP
   private Undertow server;
   private final List<ToolDefinition> tools = new ArrayList<>();
   // sessionId -> the live SSE output stream, so message responses are pushed back over SSE (MCP SSE
@@ -34,8 +37,6 @@ public class McpServer {
   // body.
   private final Map<String, OutputStream> sseStreams = new ConcurrentHashMap<>();
   private int port = 2026;
-
-  public McpServer() {}
 
   /** Register tool objects (scan for @Tool annotations). Skips duplicate tool names. */
   public void registerTools(Object... toolObjects) {
@@ -63,7 +64,7 @@ public class McpServer {
   public void start() {
     server =
         Undertow.builder()
-            .addHttpListener(port, "0.0.0.0")
+            .addHttpListener(port, BIND_ADDRESS)
             .setHandler(this::handleRequest)
             .setIoThreads(4)
             .setWorkerThreads(16)
@@ -125,7 +126,7 @@ public class McpServer {
 
     // Run SSE loop on a separate thread
     Executors.newSingleThreadExecutor()
-        .submit(
+        .execute(
             () -> {
               OutputStream out = exchange.getOutputStream();
               sseStreams.put(sessionId, out);
@@ -147,11 +148,11 @@ public class McpServer {
                       out.write(":\n\n".getBytes(StandardCharsets.UTF_8));
                       out.flush();
                     }
-                  } catch (Exception e) {
+                  } catch (IOException e) {
                     break;
                   }
                 }
-              } catch (Exception e) {
+              } catch (IOException | InterruptedException e) {
                 // Client disconnected
               } finally {
                 sseStreams.remove(sessionId);
@@ -197,14 +198,14 @@ public class McpServer {
     exchange.startBlocking();
 
     Executors.newSingleThreadExecutor()
-        .submit(
+        .execute(
             () -> {
               try {
                 String body =
                     new String(exchange.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
                 JsonNode request = MAPPER.readTree(body);
-                JsonNode response = processRequest(request, sessionId);
+                JsonNode response = processRequest(request);
 
                 // Notifications (no id) don't get a response
                 if (request.has("id") && !request.get("id").isNull()) {
@@ -231,14 +232,15 @@ public class McpServer {
                   exchange.setStatusCode(200);
                 }
                 exchange.getOutputStream().close();
-              } catch (Exception e) {
+              } catch (IOException | RuntimeException e) {
                 try {
                   exchange.setStatusCode(500);
                   exchange
                       .getOutputStream()
                       .write(("Error: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
                   exchange.getOutputStream().close();
-                } catch (Exception ignored) {
+                } catch (IOException suppressed) {
+                  System.err.println("Failed to send error response: " + suppressed.getMessage());
                 }
               }
             });
@@ -246,14 +248,14 @@ public class McpServer {
 
   // --- MCP Protocol ---
 
-  private JsonNode processRequest(JsonNode request, String sessionId) {
+  private JsonNode processRequest(JsonNode request) {
     String method = request.has("method") ? request.get("method").asText() : "";
     JsonNode id = request.get("id");
     JsonNode params = request.get("params");
 
     switch (method) {
       case "initialize":
-        return handleInitialize(id, params);
+        return handleInitialize(id);
       case "notifications/initialized":
         return null;
       case "tools/list":
@@ -265,7 +267,7 @@ public class McpServer {
     }
   }
 
-  private JsonNode handleInitialize(JsonNode id, JsonNode params) {
+  private JsonNode handleInitialize(JsonNode id) {
     ObjectNode result = MAPPER.createObjectNode();
 
     ObjectNode serverInfo = MAPPER.createObjectNode();
@@ -360,7 +362,7 @@ public class McpServer {
     exchange.dispatch();
     exchange.startBlocking();
     Executors.newSingleThreadExecutor()
-        .submit(
+        .execute(
             () -> {
               try {
                 ArrayNode toolsArray = MAPPER.createArrayNode();
@@ -379,7 +381,7 @@ public class McpServer {
                     .put(new HttpString("Access-Control-Allow-Origin"), "*");
                 exchange.getOutputStream().write(resp);
                 exchange.getOutputStream().close();
-              } catch (Exception e) {
+              } catch (IOException | RuntimeException e) {
                 exchange.setStatusCode(500);
                 exchange.endExchange();
               }
@@ -411,7 +413,7 @@ public class McpServer {
     exchange.startBlocking();
 
     Executors.newSingleThreadExecutor()
-        .submit(
+        .execute(
             () -> {
               try {
                 String body =
@@ -449,14 +451,15 @@ public class McpServer {
                   exchange.getOutputStream().write(resp);
                 }
                 exchange.getOutputStream().close();
-              } catch (Exception e) {
+              } catch (IOException | RuntimeException e) {
                 try {
                   exchange.setStatusCode(500);
                   exchange
                       .getOutputStream()
                       .write(("Error: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
                   exchange.getOutputStream().close();
-                } catch (Exception ignored) {
+                } catch (IOException suppressed) {
+                  System.err.println("Failed to send error response: " + suppressed.getMessage());
                 }
               }
             });

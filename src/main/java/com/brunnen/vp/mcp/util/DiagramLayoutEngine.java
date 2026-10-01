@@ -11,6 +11,7 @@ import com.vp.plugin.diagram.LayoutOption$SmartOrganic;
 import com.vp.plugin.model.IActor;
 import com.vp.plugin.model.IModelElement;
 import com.vp.plugin.model.IUseCase;
+import java.util.Locale;
 
 /** Layout engine with zone-aware positioning and parameterized LayoutOption construction. */
 public final class DiagramLayoutEngine {
@@ -54,7 +55,7 @@ public final class DiagramLayoutEngine {
     } else if (IDiagramTypeConstants.DIAGRAM_TYPE_CLASS_DIAGRAM.equals(diagramType)) {
       String name = element.getName();
       if (name != null) {
-        String lower = name.toLowerCase();
+        String lower = name.toLowerCase(Locale.ROOT);
         if (lower.endsWith("dao") || lower.endsWith("repository") || lower.endsWith("mapper")) {
           return ElementZone.MIDDLE;
         }
@@ -141,7 +142,7 @@ public final class DiagramLayoutEngine {
     } else if (IDiagramTypeConstants.DIAGRAM_TYPE_CLASS_DIAGRAM.equals(type)) {
       applyClassLayout(dm, diagram);
     } else if (IDiagramTypeConstants.DIAGRAM_TYPE_INTERACTION_DIAGRAM.equals(type)) {
-      applySequenceLayout(dm, diagram);
+      applySequenceLayout();
     } else if (IDiagramTypeConstants.DIAGRAM_TYPE_ER_DIAGRAM.equals(type)) {
       applyErdLayout(dm, diagram);
     } else {
@@ -169,7 +170,7 @@ public final class DiagramLayoutEngine {
     dm.openAndLayoutDiagram(diagram, opt);
   }
 
-  private static void applySequenceLayout(DiagramManager dm, IDiagramUIModel diagram) {
+  private static void applySequenceLayout() {
     // Sequence diagrams are positioned manually (lifelines spread horizontally on creation,
     // messages/activations placed top-to-bottom by sequence number). A graph auto-layout would
     // scramble that vertical ordering, so this is intentionally a no-op.

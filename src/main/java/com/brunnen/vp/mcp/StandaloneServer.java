@@ -10,9 +10,13 @@ import java.net.URL;
  * Standalone MCP server for Docker deployment. Acts as a proxy: serves MCP protocol (SSE +
  * JSON-RPC) to clients, delegates tool execution to a running VP instance via HTTP.
  */
-public class StandaloneServer {
+public final class StandaloneServer {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  private StandaloneServer() {
+    // Utility class; not instantiable.
+  }
 
   /** Start the standalone MCP proxy server, fetching tool metadata from a running VP instance. */
   public static void main(String[] args) throws Exception {

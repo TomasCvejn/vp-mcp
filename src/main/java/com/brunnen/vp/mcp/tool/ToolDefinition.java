@@ -19,7 +19,7 @@ public class ToolDefinition {
       String name, String description, ObjectNode inputSchema, Object target, Method method) {
     this.name = name;
     this.description = description;
-    this.inputSchema = inputSchema;
+    this.inputSchema = inputSchema == null ? null : inputSchema.deepCopy();
     this.target = target;
     this.method = method;
   }
@@ -49,21 +49,16 @@ public class ToolDefinition {
   }
 
   public ObjectNode getInputSchema() {
-    return inputSchema;
+    return inputSchema == null ? null : inputSchema.deepCopy();
   }
 
   public Object getTarget() {
     return target;
   }
 
-  public Method getMethod() {
-    return method;
-  }
-
   /** Execute this tool with the given arguments. Override in subclasses for proxy behavior. */
   public String execute(com.fasterxml.jackson.databind.JsonNode argsNode) throws Exception {
-    method.setAccessible(true);
-    java.lang.reflect.Parameter[] params = method.getParameters();
+    Parameter[] params = method.getParameters();
     Object[] args = new Object[params.length];
 
     for (int i = 0; i < params.length; i++) {

@@ -350,7 +350,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
                 report.append(" [").append(((IModelElement) classifierObj).getName()).append("]");
                 if (classifierObj instanceof IClass) {
                   IClass bc = (IClass) classifierObj;
-                  java.util.Iterator<?> stIter = bc.stereotypeIterator();
+                  Iterator<?> stIter = bc.stereotypeIterator();
                   if (stIter.hasNext()) {
                     report.append(" (").append(stIter.next()).append(")");
                   }
@@ -390,7 +390,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
 
             // Combined Fragments
             List<String> fragments = new ArrayList<>();
-            java.util.Iterator<?> fragIter = diagram.diagramElementIterator();
+            Iterator<?> fragIter = diagram.diagramElementIterator();
             while (fragIter.hasNext()) {
               Object obj = fragIter.next();
               if (obj instanceof com.vp.plugin.diagram.IDiagramElement) {
@@ -416,7 +416,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
                   }
 
                   // Guard from first operand
-                  java.util.Iterator<?> opIter = cf.operandIterator();
+                  Iterator<?> opIter = cf.operandIterator();
                   if (opIter.hasNext()) {
                     Object opObj = opIter.next();
                     if (opObj instanceof IInteractionOperand) {
@@ -431,7 +431,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
                   }
 
                   // Covered lifelines
-                  java.util.Iterator<?> llIter = cf.coveredLifeLineIterator();
+                  Iterator<?> llIter = cf.coveredLifeLineIterator();
                   List<String> coveredNames = new ArrayList<>();
                   while (llIter.hasNext()) {
                     Object llObj = llIter.next();
@@ -542,7 +542,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
     }
     com.vp.plugin.diagram.IDiagramElement msgShape =
         getDiagramManager().createConnector(diagram, message, fromShape, toShape, points);
-    if (msgShape instanceof com.vp.plugin.diagram.IBaseDiagramElement) {
+    if (msgShape != null) {
       // resetCaption() (as in the VP Open API sample) makes the message label render on the arrow.
       ((com.vp.plugin.diagram.IBaseDiagramElement) msgShape).resetCaption();
     }
@@ -702,19 +702,6 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
     return top != null ? top : openNewActivation(diagram, lifeline, y);
   }
 
-  /** Close the lifeline's innermost open execution at position {@code y}. */
-  private void closeTopActivation(
-      IInteractionDiagramUIModel diagram, IInteractionLifeLine lifeline, int y) {
-    String id = stackOf(diagram.getName(), lifeline.getId()).poll();
-    if (id == null) {
-      return;
-    }
-    IActivationUIModel shape = findActivationShapeById(diagram, id);
-    if (shape != null) {
-      growDown(shape, y);
-    }
-  }
-
   /** Grow an activation bar downward so its bottom reaches message position {@code y}. */
   private void growDown(IActivationUIModel shape, int y) {
     int top = shape.getY();
@@ -803,7 +790,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
     if (shape == null) {
       return;
     }
-    int needed = (y + 40) - shape.getY();
+    int needed = y + 40 - shape.getY();
     if (shape.getHeight() < needed) {
       shape.setBounds(shape.getX(), shape.getY(), shape.getWidth(), needed);
     }

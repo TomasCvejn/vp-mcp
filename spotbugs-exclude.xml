@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<FindBugsFilter>
+  <!-- ToolDefinition intentionally holds the reflected Method so it can invoke the tool.
+       Storing it is required by design, so EI_EXPOSE_REP2 is a false positive here. -->
+  <Match>
+    <Class name="com.brunnen.vp.mcp.tool.ToolDefinition"/>
+    <Bug pattern="EI_EXPOSE_REP2"/>
+  </Match>
+</FindBugsFilter>

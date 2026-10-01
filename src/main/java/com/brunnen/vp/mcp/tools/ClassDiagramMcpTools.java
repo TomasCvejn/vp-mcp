@@ -103,7 +103,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
 
             // Create package if provided
             if (packageName != null && !packageName.trim().isEmpty()) {
-              findOrCreatePackage(diagram, packageName.trim(), packageColor);
+              findOrCreatePackage(diagram, packageName.trim());
             }
 
             if (modelPackage != null && !modelPackage.trim().isEmpty()) {
@@ -689,8 +689,8 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
                 IModelElement model = de.getModelElement();
                 if (model instanceof IClass) {
                   String displayName = model.getName();
-                  if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
-                    String caption = ((com.vp.plugin.diagram.IShapeUIModel) de).getCustomText();
+                  if (de instanceof IShapeUIModel) {
+                    String caption = ((IShapeUIModel) de).getCustomText();
                     if (caption != null && !caption.isEmpty()) {
                       displayName = caption;
                     }
@@ -1428,7 +1428,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
                     fromRank.get(conn)[1] >= toRank.get(conn)[1]
                         ? fromRank.get(conn)
                         : toRank.get(conn);
-                boolean fromSide = fan == fromRank.get(conn);
+                boolean fromSide = fromRank.get(conn)[1] >= toRank.get(conn)[1];
                 double t = fan[1] > 1 ? 0.3 + 0.1 * (fan[2] % 5) : 0.5;
                 if (!fromSide) {
                   t = 1 - t;
@@ -1494,7 +1494,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
         double gap = endAngle(ends.get(i), shape) - endAngle(ends.get(i - 1), shape);
         level = gap < Math.toRadians(20) ? (level + 1) % 3 : 0;
       }
-      if (ends.get(i) == self) {
+      if (self.equals(ends.get(i))) {
         return new int[] {level, ends.size(), i};
       }
     }
@@ -1654,8 +1654,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     return pkg;
   }
 
-  private IPackage findOrCreatePackage(
-      IClassDiagramUIModel diagram, String packageName, String color) {
+  private IPackage findOrCreatePackage(IClassDiagramUIModel diagram, String packageName) {
     // Check if package already exists on diagram
     IDiagramElement existing = findDiagramElementByName(diagram, packageName);
     if (existing != null) {

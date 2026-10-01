@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.Callable;
 import javax.swing.SwingUtilities;
 
@@ -301,7 +302,7 @@ public abstract class AbstractDiagramMcpTools {
       if (obj instanceof IDiagramElement) {
         IDiagramElement de = (IDiagramElement) obj;
         IModelElement m = de.getModelElement();
-        if (m == modelElement) {
+        if (modelElement.equals(m)) {
           return de;
         }
         if (m != null && targetName.equals(m.getName())) {
@@ -354,7 +355,9 @@ public abstract class AbstractDiagramMcpTools {
                 String diagramType = d.getType();
                 if (type == null
                     || type.trim().isEmpty()
-                    || diagramType.toLowerCase().contains(type.toLowerCase())) {
+                    || diagramType
+                        .toLowerCase(Locale.ROOT)
+                        .contains(type.toLowerCase(Locale.ROOT))) {
                   diagrams.add(d.getName() + " (" + diagramType + ")");
                 }
               }
@@ -604,7 +607,7 @@ public abstract class AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            HashMap<String, Integer> counts = new HashMap<>();
+            java.util.Map<String, Integer> counts = new HashMap<>();
             Iterator<?> iter = diagram.diagramElementIterator();
             while (iter.hasNext()) {
               Object obj = iter.next();
