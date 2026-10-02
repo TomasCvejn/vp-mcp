@@ -1533,25 +1533,6 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     }
   }
 
-  /** Re-anchor an existing connector to the current centers of its two shapes. */
-  private static void centerConnector(IConnectorUIModel connector) {
-    IShapeUIModel from = connector.getFromShape();
-    IShapeUIModel to = connector.getToShape();
-    if (from == null || to == null) {
-      return;
-    }
-    connector.clearPoints();
-    connector.addPoint(center(from));
-    connector.addPoint(center(to));
-    connector.setUseFromShapeCenter(true);
-    connector.setUseToShapeCenter(true);
-    connector.setRequestRebuild(true);
-  }
-
-  private static Point center(IDiagramElement shape) {
-    return new Point(shape.getX() + shape.getWidth() / 2, shape.getY() + shape.getHeight() / 2);
-  }
-
   private static final ObjectMapper JSON = new ObjectMapper();
 
   private static boolean isSet(String value) {

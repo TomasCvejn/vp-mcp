@@ -715,6 +715,27 @@ public abstract class AbstractDiagramMcpTools {
     return model.getClass().getSimpleName();
   }
 
+  /** Re-anchor an existing connector to the current centers of its two shapes. */
+  protected static void centerConnector(com.vp.plugin.diagram.IConnectorUIModel connector) {
+    com.vp.plugin.diagram.IShapeUIModel from = connector.getFromShape();
+    com.vp.plugin.diagram.IShapeUIModel to = connector.getToShape();
+    if (from == null || to == null) {
+      return;
+    }
+    connector.clearPoints();
+    connector.addPoint(center(from));
+    connector.addPoint(center(to));
+    connector.setUseFromShapeCenter(true);
+    connector.setUseToShapeCenter(true);
+    connector.setRequestRebuild(true);
+  }
+
+  /** The center point of a shape, in diagram coordinates. */
+  protected static java.awt.Point center(IDiagramElement shape) {
+    return new java.awt.Point(
+        shape.getX() + shape.getWidth() / 2, shape.getY() + shape.getHeight() / 2);
+  }
+
   // --- VP API Accessors ---
 
   protected IProject requireProject() {
