@@ -3,6 +3,7 @@ package com.brunnen.vp.mcp.tools;
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
+import com.vp.plugin.diagram.IConnectorUIModel;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramTypeConstants;
 import com.vp.plugin.diagram.IDiagramUIModel;
@@ -165,15 +166,21 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               IAssociation assoc = getModelElementFactory().createAssociation();
               assoc.setFrom(source);
               assoc.setTo(target);
-              if (directed) {
-                IAssociationEnd fromEnd = (IAssociationEnd) assoc.getFromEnd();
-                if (fromEnd != null) {
-                  fromEnd.setNavigable(IAssociationEnd.NAVIGABLE_UNSPECIFIED);
-                }
-                IAssociationEnd toEnd = (IAssociationEnd) assoc.getToEnd();
-                if (toEnd != null) {
-                  toEnd.setNavigable(IAssociationEnd.NAVIGABLE_NAVIGABLE);
-                }
+              // VP defaults a fresh association end to NAVIGABLE. Pin both ends explicitly: a plain
+              // association has no navigability arrows (both UNSPECIFIED); a directed one is
+              // navigable only at the target. Leaving a plain association at the default makes its
+              // actor end read as navigable, which addSystemBoundary misreads as "system calls the
+              // actor" and pushes every primary actor to the secondary (right) column.
+              IAssociationEnd fromEnd = (IAssociationEnd) assoc.getFromEnd();
+              if (fromEnd != null) {
+                fromEnd.setNavigable(IAssociationEnd.NAVIGABLE_UNSPECIFIED);
+              }
+              IAssociationEnd toEnd = (IAssociationEnd) assoc.getToEnd();
+              if (toEnd != null) {
+                toEnd.setNavigable(
+                    directed
+                        ? IAssociationEnd.NAVIGABLE_NAVIGABLE
+                        : IAssociationEnd.NAVIGABLE_UNSPECIFIED);
               }
               dm.createConnector(diagram, assoc, fromElement, toElement, null);
               return "Added "
@@ -436,6 +443,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
 
             // Collect use case shapes (for the bounding box) and actor shapes (to place outside).
             List<IUseCase> useCases = new ArrayList<>();
+            java.util.Map<IModelElement, IDiagramElement> ucDeByModel = new java.util.HashMap<>();
             List<IDiagramElement> actorDes = new ArrayList<>();
             List<IAssociation> associations = new ArrayList<>();
             int minX = Integer.MAX_VALUE;
@@ -450,6 +458,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                 IModelElement model = de.getModelElement();
                 if (model instanceof IUseCase) {
                   useCases.add((IUseCase) model);
+                  ucDeByModel.put(model, de);
                   minX = Math.min(minX, de.getX());
                   minY = Math.min(minY, de.getY());
                   maxX = Math.max(maxX, de.getX() + de.getWidth());
@@ -481,18 +490,21 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             }
 
             // Move actors outside the box: primary (initiators) left, secondary (system-called)
-            // right, each stacked vertically.
+            // right. Each actor is aligned vertically with the use cases it connects to, which
+            // keeps association lines short and uncrossed; overlapping actors are then spread
+            // apart.
             int boxLeft = minX - pad;
             int boxRight = maxX + pad;
             int gap = 70;
-            int leftY = minY - pad;
-            int rightY = minY - pad;
+            List<ActorSlot> leftSlots = new ArrayList<>();
+            List<ActorSlot> rightSlots = new ArrayList<>();
             for (IDiagramElement actorDe : actorDes) {
               IModelElement actorModel = actorDe.getModelElement();
               String actorName = actorModel.getName();
               // Secondary = a use case points a navigable arrow at the actor (system calls it),
               // or it carries the «System» stereotype. Everything else is a primary actor.
               boolean secondary = actorModel.hasStereotype("System");
+              List<Integer> connectedCenters = new ArrayList<>();
               for (IAssociation a : associations) {
                 IModelElement fromM = a.getFrom();
                 IModelElement toM = a.getTo();
@@ -507,21 +519,43 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                   actorEnd = (IAssociationEnd) a.getToEnd();
                   otherM = fromM;
                 }
-                if (actorEnd != null
-                    && otherM instanceof IUseCase
-                    && actorEnd.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE) {
+                if (actorEnd == null || !(otherM instanceof IUseCase)) {
+                  continue;
+                }
+                if (actorEnd.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE) {
                   secondary = true;
-                  break;
+                }
+                IDiagramElement ucDe = ucDeByModel.get(otherM);
+                if (ucDe != null) {
+                  connectedCenters.add(ucDe.getY() + ucDe.getHeight() / 2);
                 }
               }
-              int w = actorDe.getWidth();
               int h = actorDe.getHeight();
-              if (secondary) {
-                actorDe.setBounds(boxRight + gap, rightY, w, h);
-                rightY += h + 40;
+              int desiredY;
+              if (connectedCenters.isEmpty()) {
+                desiredY = minY; // unconnected actor: top of the use-case band
               } else {
-                actorDe.setBounds(boxLeft - gap - w, leftY, w, h);
-                leftY += h + 40;
+                int sum = 0;
+                for (int c : connectedCenters) {
+                  sum += c;
+                }
+                desiredY = sum / connectedCenters.size() - h / 2;
+              }
+              (secondary ? rightSlots : leftSlots).add(new ActorSlot(actorDe, desiredY));
+            }
+            placeActorColumn(leftSlots, boxLeft - gap, true);
+            placeActorColumn(rightSlots, boxRight + gap, false);
+
+            // Moving the actors leaves their association connectors anchored at the old positions,
+            // so the arrows no longer touch the actor. Re-center every association connector (in a
+            // UC diagram associations are exactly the actor<->use-case links; include/extend/
+            // generalization keep their laid-out routing).
+            Iterator<?> connIter = diagram.diagramElementIterator();
+            while (connIter.hasNext()) {
+              Object obj = connIter.next();
+              if (obj instanceof IConnectorUIModel
+                  && ((IConnectorUIModel) obj).getModelElement() instanceof IAssociation) {
+                centerConnector((IConnectorUIModel) obj);
               }
             }
 
@@ -536,6 +570,62 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     } catch (Exception e) {
       return "Error adding system boundary: " + e.getMessage();
     }
+  }
+
+  /** An actor shape and the Y it would like to sit at (centred on its connected use cases). */
+  private static final class ActorSlot {
+    final IDiagramElement de;
+    final int desiredY;
+
+    ActorSlot(IDiagramElement de, int desiredY) {
+      this.de = de;
+      this.desiredY = desiredY;
+    }
+  }
+
+  /**
+   * Stack actors in one flanking column: sorted by desired Y, pulled apart so they never overlap.
+   *
+   * @param slots the actors to place
+   * @param edgeX the column's inner edge (right edge of the shape when leftSide, else the left
+   *     edge)
+   * @param leftSide true for the primary-actor column left of the box, false for the right column
+   */
+  private static void placeActorColumn(List<ActorSlot> slots, int edgeX, boolean leftSide) {
+    slots.sort((p, q) -> Integer.compare(p.desiredY, q.desiredY));
+    int[] desired = new int[slots.size()];
+    int[] heights = new int[slots.size()];
+    for (int i = 0; i < slots.size(); i++) {
+      desired[i] = slots.get(i).desiredY;
+      heights[i] = slots.get(i).de.getHeight();
+    }
+    int[] ys = stackYs(desired, heights, 40);
+    for (int i = 0; i < slots.size(); i++) {
+      IDiagramElement de = slots.get(i).de;
+      int w = de.getWidth();
+      de.setBounds(leftSide ? edgeX - w : edgeX, ys[i], w, de.getHeight());
+    }
+  }
+
+  /**
+   * Non-overlapping Y positions for a column: each element sits at its desired Y, or just below the
+   * previous element (its bottom plus {@code minGap}) if that would overlap. Expects inputs sorted
+   * by desired Y. Pure function, unit-tested.
+   *
+   * @param desiredY each element's preferred top Y
+   * @param heights each element's height
+   * @param minGap minimum vertical gap between stacked elements
+   * @return the resolved top Y of each element
+   */
+  static int[] stackYs(int[] desiredY, int[] heights, int minGap) {
+    int[] ys = new int[desiredY.length];
+    int cursor = Integer.MIN_VALUE;
+    for (int i = 0; i < desiredY.length; i++) {
+      int y = Math.max(desiredY[i], cursor);
+      ys[i] = y;
+      cursor = y + heights[i] + minGap;
+    }
+    return ys;
   }
 
   @Tool(

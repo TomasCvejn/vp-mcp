@@ -30,14 +30,26 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
   activation bars (use-case and sequence diagrams) via `applyConventionalFill`. Class boxes and
   ERD tables keep Visual Paradigm's default white — matching the reference exports in
   `exports/services/screenshots` and `exports/account/screenshots`.
-- **DirectedAssociation navigability**: `addRelationship(... DirectedAssociation)` now pins the
-  source end to `NAVIGABLE_UNSPECIFIED` (VP defaults a fresh end to navigable). Without this both
-  ends read as navigable, so `addSystemBoundary` misclassified every primary actor as secondary and
-  stacked all actors on one side.
+- **Association navigability**: `addRelationship` now pins BOTH ends of every actor↔use-case link
+  explicitly (VP defaults a fresh end to navigable). A plain `Association` gets both ends
+  `NAVIGABLE_UNSPECIFIED` (no arrows); a `DirectedAssociation` keeps the target end navigable. This
+  was a regression after plain `Association` became the default link: leaving the plain association
+  at VP's default made its actor end read as navigable, so `addSystemBoundary` misclassified every
+  primary actor as secondary and pushed them all to the right column. Verified live: a diagram with
+  plain actor links now places primary actors left, secondary (directed-to) actors right.
 - **`addSystemBoundary(diagramName, systemName)`** wraps all use cases of a UC diagram in a
   labeled system rectangle (the module box). Call it AFTER `autoLayoutDiagram` so the box encloses
   the laid-out use cases; it computes the use-case bounding box, reparents the use cases into an
   `ISystem`, and sends the rectangle to back. Actors stay outside the box.
+- **Connector re-anchoring**: after `addSystemBoundary` moves the actors, it re-centers every
+  association connector (`centerConnector`, now shared in `AbstractDiagramMcpTools`) so the arrows
+  follow the actor to its new position. In a UC diagram associations are exactly the
+  actor↔use-case links, so include/extend/generalization keep their laid-out routing untouched.
+- **Actor vertical alignment**: when placing actors beside the box, each actor is positioned at the
+  average vertical center of the use cases it is associated with (primary actors left, secondary
+  right), instead of being naively stacked from the top. This keeps association lines short and
+  mostly un-crossed. Overlapping actors on the same side are spread apart by the pure, unit-tested
+  `UseCaseMcpTools.stackYs` helper (see `UseCaseLayoutTest`).
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 
