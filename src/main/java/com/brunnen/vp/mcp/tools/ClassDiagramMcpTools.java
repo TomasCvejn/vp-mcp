@@ -1568,6 +1568,12 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     node.put("multiplicity", end.getMultiplicity());
     node.put("aggregation", end.getAggregationKind());
     node.put("role", end.getName());
+    int nav = end.getNavigable();
+    node.put(
+        "navigable",
+        nav == IAssociationEnd.NAVIGABLE_NAVIGABLE
+            ? "navigable"
+            : nav == IAssociationEnd.NAVIGABLE_NON_NAVIGABLE ? "non-navigable" : "unspecified");
   }
 
   private IClass findClassOnDiagram(IDiagramUIModel diagram, String className) {
