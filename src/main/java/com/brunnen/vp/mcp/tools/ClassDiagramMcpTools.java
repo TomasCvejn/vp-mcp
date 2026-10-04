@@ -1,5 +1,6 @@
 package com.brunnen.vp.mcp.tools;
 
+import com.brunnen.vp.mcp.tool.OptionalParam;
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
@@ -63,15 +64,15 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
   public String addClass(
       String diagramName,
       String className,
-      String packageName,
-      String packageColor,
-      String stereotype,
-      boolean isAbstract,
-      String extendsClass,
-      String implementsInterfaces,
-      int x,
-      int y,
-      String modelPackage) {
+      @OptionalParam String packageName,
+      @OptionalParam String packageColor,
+      @OptionalParam String stereotype,
+      @OptionalParam boolean isAbstract,
+      @OptionalParam String extendsClass,
+      @OptionalParam String implementsInterfaces,
+      @OptionalParam int x,
+      @OptionalParam int y,
+      @OptionalParam String modelPackage) {
     try {
       return runOnEdt(
           () -> {
@@ -178,9 +179,9 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
   public String addAttribute(
       String className,
       String attributeName,
-      String attributeType,
-      String visibility,
-      String diagramName) {
+      @OptionalParam String attributeType,
+      @OptionalParam String visibility,
+      @OptionalParam String diagramName) {
     try {
       return runOnEdt(
           () -> {
@@ -230,7 +231,10 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
 
   @Tool(name = "addOperation", description = "Add an operation/method to a class")
   public String addOperation(
-      String className, String operationName, String returnType, String params) {
+      String className,
+      String operationName,
+      @OptionalParam String returnType,
+      @OptionalParam String params) {
     try {
       return runOnEdt(
           () -> {
@@ -287,9 +291,9 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
       String diagramName,
       String fromClass,
       String toClass,
-      String fromMultiplicity,
-      String toMultiplicity,
-      String name) {
+      @OptionalParam String fromMultiplicity,
+      @OptionalParam String toMultiplicity,
+      @OptionalParam String name) {
     try {
       return runOnEdt(
           () -> {
@@ -367,8 +371,8 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
       String diagramName,
       String fromClass,
       String toClass,
-      String fromMultiplicity,
-      String toMultiplicity) {
+      @OptionalParam String fromMultiplicity,
+      @OptionalParam String toMultiplicity) {
     try {
       return runOnEdt(
           () -> {
@@ -410,8 +414,8 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
       String diagramName,
       String fromClass,
       String toClass,
-      String fromMultiplicity,
-      String toMultiplicity) {
+      @OptionalParam String fromMultiplicity,
+      @OptionalParam String toMultiplicity) {
     try {
       return runOnEdt(
           () -> {
@@ -530,7 +534,8 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
   }
 
   @Tool(name = "addPackage", description = "Add a package with background color to a class diagram")
-  public String addPackage(String diagramName, String packageName, String backgroundColor) {
+  public String addPackage(
+      String diagramName, String packageName, @OptionalParam String backgroundColor) {
     try {
       return runOnEdt(
           () -> {
@@ -906,11 +911,11 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
       String diagramName,
       String fromClass,
       String toClass,
-      String name,
-      String fromMultiplicity,
-      String toMultiplicity,
-      String fromRole,
-      String toRole) {
+      @OptionalParam String name,
+      @OptionalParam String fromMultiplicity,
+      @OptionalParam String toMultiplicity,
+      @OptionalParam String fromRole,
+      @OptionalParam String toRole) {
     try {
       return runOnEdt(
           () -> {

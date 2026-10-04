@@ -107,6 +107,13 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `exportDiagramImage`, `getRelationshipDetails` and the project tools moved out of
   `ClassDiagramMcpTools` (names unchanged; the server registers each tool name once). Only
   class-specific tools remain in `ClassDiagramMcpTools`.
+- **Optional tool parameters**: the input schema used to mark every parameter required, so strict
+  MCP clients had to send values for optional ones (elementType, discardChanges, addClass
+  options, multiplicities, ...). A parameter annotated `@OptionalParam` (tool package) is now left
+  out of "required"; omitted it arrives as null / 0 / false, as `ToolDefinition.execute` already
+  did. 17 tools annotated, only where the code has a sensible default (not `isNullable` in
+  addColumn, whose silent default would mean NOT NULL). `ToolDefinitionTest` covers schema and
+  binding.
 - **`buildUseCaseDiagram(diagramName, systemName, spec)`**: a whole use case diagram in one call
   instead of ~45. `spec` is JSON (actors, stereotypes, useCases, links = primary actor -> use
   case, calls = use case -> secondary actor, includes, extends with optional extension point,

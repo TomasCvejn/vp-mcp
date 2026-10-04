@@ -1,5 +1,6 @@
 package com.brunnen.vp.mcp.tools;
 
+import com.brunnen.vp.mcp.tool.OptionalParam;
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
@@ -63,10 +64,10 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
   public String addColumn(
       String tableName,
       String columnName,
-      String columnType,
-      int length,
-      int scale,
-      boolean isPrimaryKey,
+      @OptionalParam String columnType,
+      @OptionalParam int length,
+      @OptionalParam int scale,
+      @OptionalParam boolean isPrimaryKey,
       boolean isNullable) {
     try {
       return runOnEdt(
@@ -104,9 +105,9 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
       String diagramName,
       String fromTable,
       String toTable,
-      String fromColumn,
+      @OptionalParam String fromColumn,
       String toColumn,
-      String relationshipName) {
+      @OptionalParam String relationshipName) {
     try {
       return runOnEdt(
           () -> {
@@ -156,8 +157,8 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
       String fromTable,
       String toTable,
       String type,
-      String fromMultiplicity,
-      String toMultiplicity) {
+      @OptionalParam String fromMultiplicity,
+      @OptionalParam String toMultiplicity) {
     try {
       return runOnEdt(
           () -> {

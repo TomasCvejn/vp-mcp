@@ -140,7 +140,9 @@ public class ToolDefinition {
         propSchema.put("type", "string");
       }
       properties.set(paramName, propSchema);
-      required.add(paramName);
+      if (!param.isAnnotationPresent(OptionalParam.class)) {
+        required.add(paramName);
+      }
     }
 
     schema.set("properties", properties);
