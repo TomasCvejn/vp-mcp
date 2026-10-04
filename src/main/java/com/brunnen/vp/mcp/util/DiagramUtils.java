@@ -1,7 +1,6 @@
 package com.brunnen.vp.mcp.util;
 
 import com.vp.plugin.ApplicationManager;
-import com.vp.plugin.DiagramManager;
 import com.vp.plugin.diagram.IDiagramUIModel;
 import com.vp.plugin.model.IModelElement;
 import com.vp.plugin.model.IProject;
@@ -16,10 +15,6 @@ public final class DiagramUtils {
 
   public static IProject getProject() {
     return ApplicationManager.instance().getProjectManager().getProject();
-  }
-
-  public static DiagramManager getDiagramManager() {
-    return ApplicationManager.instance().getDiagramManager();
   }
 
   /** Find a diagram by name and type. Returns the LAST match (most recently created). */
@@ -96,9 +91,5 @@ public final class DiagramUtils {
       }
     }
     return result;
-  }
-
-  public static void openDiagram(IDiagramUIModel diagram) {
-    getDiagramManager().openDiagram(diagram);
   }
 }

@@ -1,15 +1,8 @@
 package com.brunnen.vp.mcp.tools;
 
 import com.brunnen.vp.mcp.tool.Tool;
-import com.brunnen.vp.mcp.util.ClassDiagramUtils;
 import com.brunnen.vp.mcp.util.DiagramUtils;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.vp.plugin.ApplicationManager;
 import com.vp.plugin.DiagramManager;
-import com.vp.plugin.ExportDiagramAsImageOption;
-import com.vp.plugin.ExportDiagramAsImageWatermark;
 import com.vp.plugin.diagram.ICaptionUIModel;
 import com.vp.plugin.diagram.IClassDiagramUIModel;
 import com.vp.plugin.diagram.IConnectorUIModel;
@@ -18,7 +11,6 @@ import com.vp.plugin.diagram.IDiagramTypeConstants;
 import com.vp.plugin.diagram.IDiagramUIModel;
 import com.vp.plugin.diagram.IShapeUIModel;
 import com.vp.plugin.diagram.connector.IAssociationUIModel;
-import com.vp.plugin.diagram.connector.IHasRoleConnectorUIModel;
 import com.vp.plugin.diagram.format.IShapeUIModelFillColor;
 import com.vp.plugin.model.IAssociation;
 import com.vp.plugin.model.IAssociationEnd;
@@ -30,12 +22,10 @@ import com.vp.plugin.model.IModelElement;
 import com.vp.plugin.model.IOperation;
 import com.vp.plugin.model.IPackage;
 import com.vp.plugin.model.IParameter;
-import com.vp.plugin.model.IProject;
 import com.vp.plugin.model.IRealization;
 import com.vp.plugin.model.IRelationship;
 import java.awt.Color;
 import java.awt.Point;
-import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -677,7 +667,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            List<IClass> classes = ClassDiagramUtils.getClassesInDiagram(diagram);
+            List<IClass> classes = getClassesInDiagram(diagram);
 
             // Build model -> caption name map
             java.util.Map<IModelElement, String> nameMap = new java.util.LinkedHashMap<>();
@@ -856,50 +846,6 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
   }
 
   @Tool(
-      name = "setElementBounds",
-      description =
-          "Move/resize a shape on a diagram. width or height <= 0 keeps the position and fits the"
-              + " shape to its content (e.g. after adding attributes)")
-  public String setElementBounds(
-      String diagramName, String elementName, int x, int y, int width, int height) {
-    try {
-      return runOnEdt(
-          () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-            IDiagramElement de = findDiagramElementByName(diagram, elementName);
-            if (de == null) {
-              return "Element not on diagram: " + elementName;
-            }
-            if (width <= 0 || height <= 0) {
-              if (de instanceof IShapeUIModel) {
-                ((IShapeUIModel) de).fitSize();
-              }
-              de.setBounds(x, y, de.getWidth(), de.getHeight());
-            } else {
-              de.setBounds(x, y, width, height);
-            }
-            // Otherwise the name caption (e.g. an actor's label) stays at the old position.
-            de.resetCaption();
-            return "Bounds of '"
-                + elementName
-                + "': "
-                + de.getX()
-                + ","
-                + de.getY()
-                + " "
-                + de.getWidth()
-                + "x"
-                + de.getHeight();
-          });
-    } catch (Exception e) {
-      return "Error setting bounds: " + e.getMessage();
-    }
-  }
-
-  @Tool(
       name = "addStereotypeToClasses",
       description =
           "Apply a stereotype (e.g. 'ORM Persistable') to classes on a diagram. classNames is a"
@@ -928,7 +874,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             }
             List<String> applied = new ArrayList<>();
             Set<String> seen = new LinkedHashSet<>();
-            for (IClass cls : ClassDiagramUtils.getClassesInDiagram(diagram)) {
+            for (IClass cls : getClassesInDiagram(diagram)) {
               if (!all && !wanted.contains(cls.getName())) {
                 continue;
               }
@@ -1077,329 +1023,6 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
           });
     } catch (Exception e) {
       return "Error updating association: " + e.getMessage();
-    }
-  }
-
-  @Tool(
-      name = "getRelationshipDetails",
-      description =
-          "Audit dump (JSON) of a diagram: classes (abstract, stereotypes, owner, attributes,"
-              + " bounds) and every relationship with both ends (multiplicity, aggregation kind,"
-              + " role), name and connector geometry. Works for any diagram type")
-  public String getRelationshipDetails(String diagramName) {
-    try {
-      return runOnEdt(
-          () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-            ObjectNode root = JSON.createObjectNode();
-            root.put("diagram", diagramName);
-            ArrayNode classes = root.putArray("classes");
-            ArrayNode relationships = root.putArray("relationships");
-            for (IDiagramElement de : getDiagramElementsList(diagram)) {
-              IModelElement model = de.getModelElement();
-              if (model instanceof IClass) {
-                IClass cls = (IClass) model;
-                ObjectNode c = classes.addObject();
-                c.put("name", cls.getName());
-                c.put("abstract", cls.isAbstract());
-                c.put("owner", nameOf(cls.getParent()));
-                ArrayNode st = c.putArray("stereotypes");
-                for (String s : cls.toStereotypeArray()) {
-                  st.add(s);
-                }
-                ArrayNode attrs = c.putArray("attributes");
-                Iterator<?> it = cls.attributeIterator();
-                while (it.hasNext()) {
-                  Object o = it.next();
-                  if (o instanceof IAttribute) {
-                    IAttribute a = (IAttribute) o;
-                    ObjectNode an = attrs.addObject();
-                    an.put("name", a.getName());
-                    an.put("type", a.getTypeAsString());
-                    an.put("visibility", a.getVisibility());
-                  }
-                }
-                c.putArray("bounds")
-                    .add(de.getX())
-                    .add(de.getY())
-                    .add(de.getWidth())
-                    .add(de.getHeight());
-              } else if (model instanceof IRelationship) {
-                IRelationship rel = (IRelationship) model;
-                ObjectNode r = relationships.addObject();
-                r.put("type", model.getModelType());
-                r.put("from", nameOf(rel.getFrom()));
-                r.put("to", nameOf(rel.getTo()));
-                r.put("name", model.getName());
-                if (model instanceof IGeneralization) {
-                  r.put("parent", nameOf(rel.getFrom()));
-                  r.put("child", nameOf(rel.getTo()));
-                }
-                if (model instanceof IAssociation) {
-                  IAssociation assoc = (IAssociation) model;
-                  putEnd(r.putObject("fromEnd"), (IAssociationEnd) assoc.getFromEnd());
-                  putEnd(r.putObject("toEnd"), (IAssociationEnd) assoc.getToEnd());
-                }
-                if (de instanceof IConnectorUIModel) {
-                  IConnectorUIModel conn = (IConnectorUIModel) de;
-                  ArrayNode pts = r.putArray("points");
-                  Point[] points = conn.getPoints();
-                  if (points != null) {
-                    for (Point pt : points) {
-                      pts.addArray().add(pt.x).add(pt.y);
-                    }
-                  }
-                  r.putArray("fromDiff")
-                      .add(conn.getFromShapeXDiff())
-                      .add(conn.getFromShapeYDiff());
-                  r.putArray("toDiff").add(conn.getToShapeXDiff()).add(conn.getToShapeYDiff());
-                  r.put(
-                      "shapeFrom",
-                      conn.getFromShape() == null
-                          ? null
-                          : nameOf(conn.getFromShape().getModelElement()));
-                  r.put(
-                      "shapeTo",
-                      conn.getToShape() == null
-                          ? null
-                          : nameOf(conn.getToShape().getModelElement()));
-                  r.putArray("connectorBounds")
-                      .add(conn.getX())
-                      .add(conn.getY())
-                      .add(conn.getWidth())
-                      .add(conn.getHeight());
-                  if (conn instanceof IHasRoleConnectorUIModel) {
-                    IHasRoleConnectorUIModel hr = (IHasRoleConnectorUIModel) conn;
-                    putRect(r, "multA", hr.getMultiplicityARectangle());
-                    putRect(r, "multB", hr.getMultiplicityBRectangle());
-                    putRect(r, "roleA", hr.getRoleARectangle());
-                    putRect(r, "roleB", hr.getRoleBRectangle());
-                  }
-                  ICaptionUIModel cap = conn.getCaptionUIModel();
-                  if (cap != null) {
-                    r.putArray("caption")
-                        .add(cap.getX())
-                        .add(cap.getY())
-                        .add(cap.getWidth())
-                        .add(cap.getHeight());
-                  }
-                }
-              }
-            }
-            return JSON.writeValueAsString(root);
-          });
-    } catch (Exception e) {
-      return "Error reading relationship details: " + e.getMessage();
-    }
-  }
-
-  @Tool(
-      name = "exportDiagramImage",
-      description = "Open a diagram and export it as a PNG image to an absolute file path")
-  public String exportDiagramImage(String diagramName, String filePath) {
-    try {
-      if (filePath == null || filePath.trim().isEmpty()) {
-        return "filePath is required";
-      }
-      final File file = new File(filePath.trim());
-      File dir = file.getAbsoluteFile().getParentFile();
-      if (dir != null && !dir.isDirectory() && !dir.mkdirs()) {
-        return "Cannot create directory: " + dir;
-      }
-      // Activating a diagram can fail on the first try when the project has been idle
-      // (the EDT needs to process the open before getActiveDiagram reflects it). Retry the
-      // open+activate a few times, sleeping off the EDT between attempts.
-      if (runOnEdt(() -> DiagramUtils.findDiagramByName(diagramName) == null)) {
-        return "Diagram not found: " + diagramName;
-      }
-      boolean activated = false;
-      for (int attempt = 0; attempt < 3 && !activated; attempt++) {
-        if (attempt > 0) {
-          Thread.sleep(300L);
-        }
-        activated =
-            runOnEdt(
-                () -> {
-                  IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-                  if (diagram == null) {
-                    return false;
-                  }
-                  getDiagramManager().openDiagram(diagram);
-                  IDiagramUIModel active = getDiagramManager().getActiveDiagram();
-                  return active != null && active.getId().equals(diagram.getId());
-                });
-      }
-      if (!activated) {
-        return "Diagram could not be activated: " + diagramName;
-      }
-      return runOnEdt(
-          () -> {
-            ExportDiagramAsImageOption exportOption =
-                new ExportDiagramAsImageOption(ExportDiagramAsImageOption.IMAGE_TYPE_PNG);
-            ExportDiagramAsImageWatermark emptyWatermark = (graphics, width, height) -> {};
-            exportOption.setWatermark(emptyWatermark);
-            ApplicationManager.instance()
-                .getModelConvertionManager()
-                .exportActiveDiagramAsImage(file, exportOption);
-            return file.isFile()
-                ? "Exported '" + diagramName + "' to " + file + " (" + file.length() + " bytes)"
-                : "Export did not produce a file: " + file;
-          });
-    } catch (Exception e) {
-      return "Error exporting diagram: " + e.getMessage();
-    }
-  }
-
-  @Tool(
-      name = "newProject",
-      description =
-          "VP File > New Project: close the open project and start a new empty one; save it"
-              + " with saveProjectAs. Refuses while the open project has unsaved changes unless"
-              + " discardChanges is true")
-  public String newProject(Boolean discardChanges) {
-    try {
-      return runOnEdt(
-          () -> {
-            IProject current = DiagramUtils.getProject();
-            if (current != null && current.isModified() && !Boolean.TRUE.equals(discardChanges)) {
-              return "Project '"
-                  + current.getName()
-                  + "' has unsaved changes: saveProject first, or pass discardChanges=true";
-            }
-            boolean ok = ApplicationManager.instance().getProjectManager().newProject();
-            IProject project = DiagramUtils.getProject();
-            return ok && project != null
-                ? "Created new project: " + project.getName()
-                : "New project failed";
-          });
-    } catch (Exception e) {
-      return "Error creating project: " + e.getMessage();
-    }
-  }
-
-  @Tool(
-      name = "saveProjectAs",
-      description =
-          "VP File > Save As: save the open project to a new .vpp path (parent folder must exist,"
-              + " existing files are not overwritten); the new file becomes the open project")
-  public String saveProjectAs(String filePath) {
-    try {
-      return runOnEdt(
-          () -> {
-            requireProject();
-            if (filePath == null || filePath.trim().isEmpty()) {
-              return "filePath is required";
-            }
-            String path = filePath.trim();
-            File file =
-                new File(path.toLowerCase(Locale.ROOT).endsWith(".vpp") ? path : path + ".vpp");
-            File dir = file.getAbsoluteFile().getParentFile();
-            if (dir == null || !dir.isDirectory()) {
-              return "Folder does not exist: " + dir;
-            }
-            if (file.exists()) {
-              return "File already exists (not overwritten): " + file;
-            }
-            boolean ok = ApplicationManager.instance().getProjectManager().saveProjectAs(file);
-            IProject project = DiagramUtils.getProject();
-            return ok
-                ? "Saved project as " + project.getProjectFile()
-                : "Save As failed for " + file;
-          });
-    } catch (Exception e) {
-      return "Error in Save As: " + e.getMessage();
-    }
-  }
-
-  @Tool(name = "saveProject", description = "Save the currently open project to its file")
-  public String saveProject() {
-    try {
-      return runOnEdt(
-          () -> {
-            IProject project = requireProject();
-            boolean ok = ApplicationManager.instance().getProjectManager().saveProject();
-            return (ok ? "Saved project to " : "Save failed for ") + project.getProjectFile();
-          });
-    } catch (Exception e) {
-      return "Error saving project: " + e.getMessage();
-    }
-  }
-
-  @Tool(
-      name = "getProjectInfo",
-      description =
-          "Name, file path and unsaved-changes flag of the project open in Visual Paradigm, plus"
-              + " when the running plugin was loaded and whether a newer build is installed"
-              + " (stale = restart Visual Paradigm to load it)")
-  public String getProjectInfo() {
-    try {
-      return runOnEdt(
-          () -> {
-            IProject project = DiagramUtils.getProject();
-            if (project == null) {
-              return "No project is open";
-            }
-            ObjectNode root = JSON.createObjectNode();
-            root.put("name", project.getName());
-            File file = project.getProjectFile();
-            root.put("file", file != null ? file.getAbsolutePath() : null);
-            root.put("diagramCount", DiagramUtils.findAllDiagrams(IDiagramUIModel.class).size());
-            root.put("modified", project.isModified());
-            root.set("plugin", pluginInfo());
-            return JSON.writeValueAsString(root);
-          });
-    } catch (Exception e) {
-      return "Error reading project info: " + e.getMessage();
-    }
-  }
-
-  /** When this plugin build was loaded, and whether the installed jar has changed since. */
-  private static ObjectNode pluginInfo() {
-    ObjectNode info = JSON.createObjectNode();
-    info.put("loadedAt", java.time.Instant.ofEpochMilli(LOADED_AT).toString());
-    java.security.CodeSource source =
-        ClassDiagramMcpTools.class.getProtectionDomain().getCodeSource();
-    File jar = null;
-    try {
-      jar = source == null ? null : new File(source.getLocation().toURI());
-    } catch (java.net.URISyntaxException e) {
-      jar = null;
-    }
-    if (jar != null && jar.isFile()) {
-      info.put("jar", jar.getAbsolutePath());
-      info.put("installedAt", java.time.Instant.ofEpochMilli(jar.lastModified()).toString());
-      info.put("stale", jar.lastModified() > LOADED_AT);
-    }
-    return info;
-  }
-
-  @Tool(
-      name = "rerouteConnectors",
-      description =
-          "Re-anchor every connector of a diagram to the centers of its shapes (straight"
-              + " center-to-center lines); run after moving shapes")
-  public String rerouteConnectors(String diagramName) {
-    try {
-      return runOnEdt(
-          () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-            int count = 0;
-            for (IDiagramElement de : getDiagramElementsList(diagram)) {
-              if (de instanceof IConnectorUIModel) {
-                centerConnector((IConnectorUIModel) de);
-                count++;
-              }
-            }
-            return "Rerouted " + count + " connector(s) on '" + diagramName + "'";
-          });
-    } catch (Exception e) {
-      return "Error rerouting connectors: " + e.getMessage();
     }
   }
 
@@ -1564,12 +1187,6 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     return Math.atan2(oy - sy, ox - sx);
   }
 
-  private static void putRect(ObjectNode node, String key, java.awt.Rectangle rect) {
-    if (rect != null) {
-      node.putArray(key).add(rect.x).add(rect.y).add(rect.width).add(rect.height);
-    }
-  }
-
   private void connectCentered(
       IDiagramUIModel diagram, IModelElement model, IDiagramElement from, IDiagramElement to) {
     // Explicit center points: with null points VP anchors both ends at the shapes' top-left
@@ -1582,30 +1199,8 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     }
   }
 
-  private static final ObjectMapper JSON = new ObjectMapper();
-
   private static boolean isSet(String value) {
     return value != null && !value.trim().isEmpty();
-  }
-
-  private static String nameOf(IModelElement element) {
-    return element != null ? element.getName() : null;
-  }
-
-  private static void putEnd(ObjectNode node, IAssociationEnd end) {
-    if (end == null) {
-      return;
-    }
-    node.put("class", nameOf(end.getTypeAsElement()));
-    node.put("multiplicity", end.getMultiplicity());
-    node.put("aggregation", end.getAggregationKind());
-    node.put("role", end.getName());
-    int nav = end.getNavigable();
-    node.put(
-        "navigable",
-        nav == IAssociationEnd.NAVIGABLE_NAVIGABLE
-            ? "navigable"
-            : nav == IAssociationEnd.NAVIGABLE_NON_NAVIGABLE ? "non-navigable" : "unspecified");
   }
 
   private IClass findClassOnDiagram(IDiagramUIModel diagram, String className) {
@@ -1705,5 +1300,28 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     pkg.setName(packageName);
     addToDiagram(diagram, pkg, packageName);
     return pkg;
+  }
+
+  // --- Helpers ---
+
+  /**
+   * Get all classes in a specific class diagram.
+   *
+   * @param diagram the class diagram
+   * @return list of classes in the diagram
+   */
+  private static List<IClass> getClassesInDiagram(IClassDiagramUIModel diagram) {
+    List<IClass> classes = new ArrayList<>();
+    Iterator<?> iter = diagram.diagramElementIterator();
+    while (iter.hasNext()) {
+      Object obj = iter.next();
+      if (obj instanceof IDiagramElement) {
+        IModelElement model = ((IDiagramElement) obj).getModelElement();
+        if (model instanceof IClass) {
+          classes.add((IClass) model);
+        }
+      }
+    }
+    return classes;
   }
 }

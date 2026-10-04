@@ -3,10 +3,19 @@ package com.brunnen.vp.mcp.tools;
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramLayoutEngine;
 import com.brunnen.vp.mcp.util.DiagramUtils;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.vp.plugin.ApplicationManager;
 import com.vp.plugin.DiagramManager;
+import com.vp.plugin.ExportDiagramAsImageOption;
+import com.vp.plugin.ExportDiagramAsImageWatermark;
+import com.vp.plugin.diagram.ICaptionUIModel;
+import com.vp.plugin.diagram.IConnectorUIModel;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramUIModel;
+import com.vp.plugin.diagram.IShapeUIModel;
+import com.vp.plugin.diagram.connector.IHasRoleConnectorUIModel;
 import com.vp.plugin.model.IActor;
 import com.vp.plugin.model.IAssociation;
 import com.vp.plugin.model.IAssociationEnd;
@@ -27,6 +36,8 @@ import com.vp.plugin.model.IProject;
 import com.vp.plugin.model.IRelationship;
 import com.vp.plugin.model.IUseCase;
 import com.vp.plugin.model.factory.IModelElementFactory;
+import java.awt.Point;
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -108,8 +119,8 @@ public abstract class AbstractDiagramMcpTools {
     DiagramManager dm = ApplicationManager.instance().getDiagramManager();
     element.setName(name);
     IDiagramElement diagramElement = dm.createDiagramElement(diagram, element);
-    if (diagramElement instanceof com.vp.plugin.diagram.IShapeUIModel) {
-      ((com.vp.plugin.diagram.IShapeUIModel) diagramElement).setCustomText(name);
+    if (diagramElement instanceof IShapeUIModel) {
+      ((IShapeUIModel) diagramElement).setCustomText(name);
     }
     applyConventionalFill(diagramElement, element);
     String key = diagram.getName();
@@ -152,9 +163,9 @@ public abstract class AbstractDiagramMcpTools {
    * @param de the diagram element to color
    */
   protected void applyBlueFill(IDiagramElement de) {
-    if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
+    if (de instanceof IShapeUIModel) {
       com.vp.plugin.diagram.format.IShapeUIModelFillColor fill =
-          ((com.vp.plugin.diagram.IShapeUIModel) de).getFillColor();
+          ((IShapeUIModel) de).getFillColor();
       if (fill != null) {
         fill.setColor1(VP_FILL_BLUE, true);
       }
@@ -180,8 +191,8 @@ public abstract class AbstractDiagramMcpTools {
       Object diagramObj = diagramIter.next();
       if (diagramObj instanceof IDiagramUIModel) {
         IDiagramElement de = findDiagramElementByModel((IDiagramUIModel) diagramObj, element);
-        if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
-          ((com.vp.plugin.diagram.IShapeUIModel) de).fitSize();
+        if (de instanceof IShapeUIModel) {
+          ((IShapeUIModel) de).fitSize();
         }
       }
     }
@@ -208,8 +219,8 @@ public abstract class AbstractDiagramMcpTools {
         if (model != null && name.equals(model.getName())) {
           return de;
         }
-        if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
-          String caption = ((com.vp.plugin.diagram.IShapeUIModel) de).getCustomText();
+        if (de instanceof IShapeUIModel) {
+          String caption = ((IShapeUIModel) de).getCustomText();
           if (name.equals(caption)) {
             return de;
           }
@@ -274,8 +285,8 @@ public abstract class AbstractDiagramMcpTools {
           if (name.equals(model.getName())) {
             return type.cast(model);
           }
-          if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
-            String caption = ((com.vp.plugin.diagram.IShapeUIModel) de).getCustomText();
+          if (de instanceof IShapeUIModel) {
+            String caption = ((IShapeUIModel) de).getCustomText();
             if (name.equals(caption)) {
               return type.cast(model);
             }
@@ -613,10 +624,9 @@ public abstract class AbstractDiagramMcpTools {
               if (model == null) {
                 continue;
               }
-              if (de instanceof com.vp.plugin.diagram.IConnectorUIModel) {
-                com.vp.plugin.diagram.IConnectorUIModel c =
-                    (com.vp.plugin.diagram.IConnectorUIModel) de;
-                java.awt.Point[] points = c.getPoints();
+              if (de instanceof IConnectorUIModel) {
+                IConnectorUIModel c = (IConnectorUIModel) de;
+                Point[] points = c.getPoints();
                 if (c.getFromShape() == null || c.getToShape() == null || points == null) {
                   continue;
                 }
@@ -624,7 +634,7 @@ public abstract class AbstractDiagramMcpTools {
                 String to = c.getToShape().getModelElement().getName();
                 String name = model.getModelType() + " " + from + " -> " + to;
                 lines.add(new LayoutCheck.Line(name, from, to, points));
-              } else if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
+              } else if (de instanceof IShapeUIModel) {
                 boolean container =
                     model instanceof com.vp.plugin.model.ISystem
                         || model instanceof com.vp.plugin.model.IPackage;
@@ -655,7 +665,7 @@ public abstract class AbstractDiagramMcpTools {
   private String removeSystemBoundary(
       IDiagramUIModel diagram, IDiagramElement boundary, String elementName) {
     com.vp.plugin.model.ISystem system = (com.vp.plugin.model.ISystem) boundary.getModelElement();
-    for (com.vp.plugin.diagram.IShapeUIModel child : boundary.toChildArray()) {
+    for (IShapeUIModel child : boundary.toChildArray()) {
       boundary.removeChild(child);
       diagram.addDiagramElement(child);
     }
@@ -712,9 +722,9 @@ public abstract class AbstractDiagramMcpTools {
             }
             de.getModelElement().setName(name);
             // A boundary also shows a custom caption (set by addSystemBoundary).
-            if (de instanceof com.vp.plugin.diagram.IShapeUIModel
-                && elementName.equals(((com.vp.plugin.diagram.IShapeUIModel) de).getCustomText())) {
-              ((com.vp.plugin.diagram.IShapeUIModel) de).setCustomText(name);
+            if (de instanceof IShapeUIModel
+                && elementName.equals(((IShapeUIModel) de).getCustomText())) {
+              ((IShapeUIModel) de).setCustomText(name);
             }
             return "Renamed '" + elementName + "' to '" + name + "'";
           });
@@ -745,10 +755,10 @@ public abstract class AbstractDiagramMcpTools {
             }
             // A shape nested in a container (e.g. a use case in a system boundary) is owned by
             // its parent shape, so detach it there first.
-            if (element instanceof com.vp.plugin.diagram.IShapeUIModel) {
-              IDiagramElement parent = ((com.vp.plugin.diagram.IShapeUIModel) element).getParent();
+            if (element instanceof IShapeUIModel) {
+              IDiagramElement parent = ((IShapeUIModel) element).getParent();
               if (parent != null) {
-                parent.removeChild((com.vp.plugin.diagram.IShapeUIModel) element);
+                parent.removeChild((IShapeUIModel) element);
               }
             }
             diagram.removeDiagramElement(element);
@@ -836,55 +846,424 @@ public abstract class AbstractDiagramMcpTools {
     }
   }
 
+  @Tool(
+      name = "setElementBounds",
+      description =
+          "Move/resize a shape on a diagram. width or height <= 0 keeps the position and fits the"
+              + " shape to its content (e.g. after adding attributes)")
+  public String setElementBounds(
+      String diagramName, String elementName, int x, int y, int width, int height) {
+    try {
+      return runOnEdt(
+          () -> {
+            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            IDiagramElement de = findDiagramElementByName(diagram, elementName);
+            if (de == null) {
+              return "Element not on diagram: " + elementName;
+            }
+            if (width <= 0 || height <= 0) {
+              if (de instanceof IShapeUIModel) {
+                ((IShapeUIModel) de).fitSize();
+              }
+              de.setBounds(x, y, de.getWidth(), de.getHeight());
+            } else {
+              de.setBounds(x, y, width, height);
+            }
+            // Otherwise the name caption (e.g. an actor's label) stays at the old position.
+            de.resetCaption();
+            return "Bounds of '"
+                + elementName
+                + "': "
+                + de.getX()
+                + ","
+                + de.getY()
+                + " "
+                + de.getWidth()
+                + "x"
+                + de.getHeight();
+          });
+    } catch (Exception e) {
+      return "Error setting bounds: " + e.getMessage();
+    }
+  }
+
+  @Tool(
+      name = "getRelationshipDetails",
+      description =
+          "Audit dump (JSON) of a diagram: classes (abstract, stereotypes, owner, attributes,"
+              + " bounds) and every relationship with both ends (multiplicity, aggregation kind,"
+              + " role), name and connector geometry. Works for any diagram type")
+  public String getRelationshipDetails(String diagramName) {
+    try {
+      return runOnEdt(
+          () -> {
+            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            ObjectNode root = JSON.createObjectNode();
+            root.put("diagram", diagramName);
+            ArrayNode classes = root.putArray("classes");
+            ArrayNode relationships = root.putArray("relationships");
+            for (IDiagramElement de : getDiagramElementsList(diagram)) {
+              IModelElement model = de.getModelElement();
+              if (model instanceof IClass) {
+                IClass cls = (IClass) model;
+                ObjectNode c = classes.addObject();
+                c.put("name", cls.getName());
+                c.put("abstract", cls.isAbstract());
+                c.put("owner", nameOf(cls.getParent()));
+                ArrayNode st = c.putArray("stereotypes");
+                for (String s : cls.toStereotypeArray()) {
+                  st.add(s);
+                }
+                ArrayNode attrs = c.putArray("attributes");
+                Iterator<?> it = cls.attributeIterator();
+                while (it.hasNext()) {
+                  Object o = it.next();
+                  if (o instanceof IAttribute) {
+                    IAttribute a = (IAttribute) o;
+                    ObjectNode an = attrs.addObject();
+                    an.put("name", a.getName());
+                    an.put("type", a.getTypeAsString());
+                    an.put("visibility", a.getVisibility());
+                  }
+                }
+                c.putArray("bounds")
+                    .add(de.getX())
+                    .add(de.getY())
+                    .add(de.getWidth())
+                    .add(de.getHeight());
+              } else if (model instanceof IRelationship) {
+                IRelationship rel = (IRelationship) model;
+                ObjectNode r = relationships.addObject();
+                r.put("type", model.getModelType());
+                r.put("from", nameOf(rel.getFrom()));
+                r.put("to", nameOf(rel.getTo()));
+                r.put("name", model.getName());
+                if (model instanceof IGeneralization) {
+                  r.put("parent", nameOf(rel.getFrom()));
+                  r.put("child", nameOf(rel.getTo()));
+                }
+                if (model instanceof IAssociation) {
+                  IAssociation assoc = (IAssociation) model;
+                  putEnd(r.putObject("fromEnd"), (IAssociationEnd) assoc.getFromEnd());
+                  putEnd(r.putObject("toEnd"), (IAssociationEnd) assoc.getToEnd());
+                }
+                if (de instanceof IConnectorUIModel) {
+                  IConnectorUIModel conn = (IConnectorUIModel) de;
+                  ArrayNode pts = r.putArray("points");
+                  Point[] points = conn.getPoints();
+                  if (points != null) {
+                    for (Point pt : points) {
+                      pts.addArray().add(pt.x).add(pt.y);
+                    }
+                  }
+                  r.putArray("fromDiff")
+                      .add(conn.getFromShapeXDiff())
+                      .add(conn.getFromShapeYDiff());
+                  r.putArray("toDiff").add(conn.getToShapeXDiff()).add(conn.getToShapeYDiff());
+                  r.put(
+                      "shapeFrom",
+                      conn.getFromShape() == null
+                          ? null
+                          : nameOf(conn.getFromShape().getModelElement()));
+                  r.put(
+                      "shapeTo",
+                      conn.getToShape() == null
+                          ? null
+                          : nameOf(conn.getToShape().getModelElement()));
+                  r.putArray("connectorBounds")
+                      .add(conn.getX())
+                      .add(conn.getY())
+                      .add(conn.getWidth())
+                      .add(conn.getHeight());
+                  if (conn instanceof IHasRoleConnectorUIModel) {
+                    IHasRoleConnectorUIModel hr = (IHasRoleConnectorUIModel) conn;
+                    putRect(r, "multA", hr.getMultiplicityARectangle());
+                    putRect(r, "multB", hr.getMultiplicityBRectangle());
+                    putRect(r, "roleA", hr.getRoleARectangle());
+                    putRect(r, "roleB", hr.getRoleBRectangle());
+                  }
+                  ICaptionUIModel cap = conn.getCaptionUIModel();
+                  if (cap != null) {
+                    r.putArray("caption")
+                        .add(cap.getX())
+                        .add(cap.getY())
+                        .add(cap.getWidth())
+                        .add(cap.getHeight());
+                  }
+                }
+              }
+            }
+            return JSON.writeValueAsString(root);
+          });
+    } catch (Exception e) {
+      return "Error reading relationship details: " + e.getMessage();
+    }
+  }
+
+  @Tool(
+      name = "exportDiagramImage",
+      description = "Open a diagram and export it as a PNG image to an absolute file path")
+  public String exportDiagramImage(String diagramName, String filePath) {
+    try {
+      if (filePath == null || filePath.trim().isEmpty()) {
+        return "filePath is required";
+      }
+      final File file = new File(filePath.trim());
+      File dir = file.getAbsoluteFile().getParentFile();
+      if (dir != null && !dir.isDirectory() && !dir.mkdirs()) {
+        return "Cannot create directory: " + dir;
+      }
+      // Activating a diagram can fail on the first try when the project has been idle
+      // (the EDT needs to process the open before getActiveDiagram reflects it). Retry the
+      // open+activate a few times, sleeping off the EDT between attempts.
+      if (runOnEdt(() -> DiagramUtils.findDiagramByName(diagramName) == null)) {
+        return "Diagram not found: " + diagramName;
+      }
+      boolean activated = false;
+      for (int attempt = 0; attempt < 3 && !activated; attempt++) {
+        if (attempt > 0) {
+          Thread.sleep(300L);
+        }
+        activated =
+            runOnEdt(
+                () -> {
+                  IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+                  if (diagram == null) {
+                    return false;
+                  }
+                  getDiagramManager().openDiagram(diagram);
+                  IDiagramUIModel active = getDiagramManager().getActiveDiagram();
+                  return active != null && active.getId().equals(diagram.getId());
+                });
+      }
+      if (!activated) {
+        return "Diagram could not be activated: " + diagramName;
+      }
+      return runOnEdt(
+          () -> {
+            ExportDiagramAsImageOption exportOption =
+                new ExportDiagramAsImageOption(ExportDiagramAsImageOption.IMAGE_TYPE_PNG);
+            ExportDiagramAsImageWatermark emptyWatermark = (graphics, width, height) -> {};
+            exportOption.setWatermark(emptyWatermark);
+            ApplicationManager.instance()
+                .getModelConvertionManager()
+                .exportActiveDiagramAsImage(file, exportOption);
+            return file.isFile()
+                ? "Exported '" + diagramName + "' to " + file + " (" + file.length() + " bytes)"
+                : "Export did not produce a file: " + file;
+          });
+    } catch (Exception e) {
+      return "Error exporting diagram: " + e.getMessage();
+    }
+  }
+
+  @Tool(
+      name = "newProject",
+      description =
+          "VP File > New Project: close the open project and start a new empty one; save it"
+              + " with saveProjectAs. Refuses while the open project has unsaved changes unless"
+              + " discardChanges is true")
+  public String newProject(Boolean discardChanges) {
+    try {
+      return runOnEdt(
+          () -> {
+            IProject current = DiagramUtils.getProject();
+            if (current != null && current.isModified() && !Boolean.TRUE.equals(discardChanges)) {
+              return "Project '"
+                  + current.getName()
+                  + "' has unsaved changes: saveProject first, or pass discardChanges=true";
+            }
+            boolean ok = ApplicationManager.instance().getProjectManager().newProject();
+            IProject project = DiagramUtils.getProject();
+            return ok && project != null
+                ? "Created new project: " + project.getName()
+                : "New project failed";
+          });
+    } catch (Exception e) {
+      return "Error creating project: " + e.getMessage();
+    }
+  }
+
+  @Tool(
+      name = "saveProjectAs",
+      description =
+          "VP File > Save As: save the open project to a new .vpp path (parent folder must exist,"
+              + " existing files are not overwritten); the new file becomes the open project")
+  public String saveProjectAs(String filePath) {
+    try {
+      return runOnEdt(
+          () -> {
+            requireProject();
+            if (filePath == null || filePath.trim().isEmpty()) {
+              return "filePath is required";
+            }
+            String path = filePath.trim();
+            File file =
+                new File(path.toLowerCase(Locale.ROOT).endsWith(".vpp") ? path : path + ".vpp");
+            File dir = file.getAbsoluteFile().getParentFile();
+            if (dir == null || !dir.isDirectory()) {
+              return "Folder does not exist: " + dir;
+            }
+            if (file.exists()) {
+              return "File already exists (not overwritten): " + file;
+            }
+            boolean ok = ApplicationManager.instance().getProjectManager().saveProjectAs(file);
+            IProject project = DiagramUtils.getProject();
+            return ok
+                ? "Saved project as " + project.getProjectFile()
+                : "Save As failed for " + file;
+          });
+    } catch (Exception e) {
+      return "Error in Save As: " + e.getMessage();
+    }
+  }
+
+  @Tool(name = "saveProject", description = "Save the currently open project to its file")
+  public String saveProject() {
+    try {
+      return runOnEdt(
+          () -> {
+            IProject project = requireProject();
+            boolean ok = ApplicationManager.instance().getProjectManager().saveProject();
+            return (ok ? "Saved project to " : "Save failed for ") + project.getProjectFile();
+          });
+    } catch (Exception e) {
+      return "Error saving project: " + e.getMessage();
+    }
+  }
+
+  @Tool(
+      name = "getProjectInfo",
+      description =
+          "Name, file path and unsaved-changes flag of the project open in Visual Paradigm, plus"
+              + " when the running plugin was loaded and whether a newer build is installed"
+              + " (stale = restart Visual Paradigm to load it)")
+  public String getProjectInfo() {
+    try {
+      return runOnEdt(
+          () -> {
+            IProject project = DiagramUtils.getProject();
+            if (project == null) {
+              return "No project is open";
+            }
+            ObjectNode root = JSON.createObjectNode();
+            root.put("name", project.getName());
+            File file = project.getProjectFile();
+            root.put("file", file != null ? file.getAbsolutePath() : null);
+            root.put("diagramCount", DiagramUtils.findAllDiagrams(IDiagramUIModel.class).size());
+            root.put("modified", project.isModified());
+            root.set("plugin", pluginInfo());
+            return JSON.writeValueAsString(root);
+          });
+    } catch (Exception e) {
+      return "Error reading project info: " + e.getMessage();
+    }
+  }
+
+  @Tool(
+      name = "rerouteConnectors",
+      description =
+          "Re-anchor every connector of a diagram to the centers of its shapes (straight"
+              + " center-to-center lines); run after moving shapes")
+  public String rerouteConnectors(String diagramName) {
+    try {
+      return runOnEdt(
+          () -> {
+            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            int count = 0;
+            for (IDiagramElement de : getDiagramElementsList(diagram)) {
+              if (de instanceof IConnectorUIModel) {
+                centerConnector((IConnectorUIModel) de);
+                count++;
+              }
+            }
+            return "Rerouted " + count + " connector(s) on '" + diagramName + "'";
+          });
+    } catch (Exception e) {
+      return "Error rerouting connectors: " + e.getMessage();
+    }
+  }
+
+  /** When this plugin build was loaded, and whether the installed jar has changed since. */
+  protected static ObjectNode pluginInfo() {
+    ObjectNode info = JSON.createObjectNode();
+    info.put("loadedAt", java.time.Instant.ofEpochMilli(LOADED_AT).toString());
+    java.security.CodeSource source =
+        AbstractDiagramMcpTools.class.getProtectionDomain().getCodeSource();
+    File jar = null;
+    try {
+      jar = source == null ? null : new File(source.getLocation().toURI());
+    } catch (java.net.URISyntaxException e) {
+      jar = null;
+    }
+    if (jar != null && jar.isFile()) {
+      info.put("jar", jar.getAbsolutePath());
+      info.put("installedAt", java.time.Instant.ofEpochMilli(jar.lastModified()).toString());
+      info.put("stale", jar.lastModified() > LOADED_AT);
+    }
+    return info;
+  }
+
+  protected static void putRect(ObjectNode node, String key, java.awt.Rectangle rect) {
+    if (rect != null) {
+      node.putArray(key).add(rect.x).add(rect.y).add(rect.width).add(rect.height);
+    }
+  }
+
+  protected static final ObjectMapper JSON = new ObjectMapper();
+
+  protected static String nameOf(IModelElement element) {
+    return element != null ? element.getName() : null;
+  }
+
+  protected static void putEnd(ObjectNode node, IAssociationEnd end) {
+    if (end == null) {
+      return;
+    }
+    node.put("class", nameOf(end.getTypeAsElement()));
+    node.put("multiplicity", end.getMultiplicity());
+    node.put("aggregation", end.getAggregationKind());
+    node.put("role", end.getName());
+    int nav = end.getNavigable();
+    node.put(
+        "navigable",
+        nav == IAssociationEnd.NAVIGABLE_NAVIGABLE
+            ? "navigable"
+            : nav == IAssociationEnd.NAVIGABLE_NON_NAVIGABLE ? "non-navigable" : "unspecified");
+  }
+
   // --- Type Name Helper ---
 
   private static String getSemanticTypeName(IModelElement model) {
     if (model == null) {
       return "unknown";
     }
-    if (model instanceof IActor) {
-      return "Actor";
+    if (model instanceof IClass && model.hasStereotype("Interface")) {
+      return "Interface";
     }
-    if (model instanceof IUseCase) {
-      return "UseCase";
+    // getModelType() is the API's type name ("Actor", "UseCase", "System", ...); only the names
+    // these tools always reported differently are mapped. Never use getClass(): VP's
+    // implementation classes are obfuscated (e.g. "dgz" for a system boundary).
+    String type = model.getModelType();
+    switch (type) {
+      case IModelElementFactory.MODEL_TYPE_DB_TABLE:
+        return "Table";
+      case IModelElementFactory.MODEL_TYPE_DB_FOREIGN_KEY:
+        return "ForeignKey";
+      case IModelElementFactory.MODEL_TYPE_INTERACTION_LIFE_LINE:
+        return "Lifeline";
+      default:
+        return type;
     }
-    if (model instanceof IInclude) {
-      return "Include";
-    }
-    if (model instanceof IExtend) {
-      return "Extend";
-    }
-    if (model instanceof IGeneralization) {
-      return "Generalization";
-    }
-    if (model instanceof IAssociation) {
-      return "Association";
-    }
-    if (model instanceof IClass) {
-      // Check for Interface stereotype
-      Iterator<?> stereotypes = ((IClass) model).stereotypeIterator();
-      while (stereotypes.hasNext()) {
-        if ("Interface".equals(stereotypes.next())) {
-          return "Interface";
-        }
-      }
-      return "Class";
-    }
-    if (model instanceof IDBTable) {
-      return "Table";
-    }
-    if (model instanceof IDBForeignKey) {
-      return "ForeignKey";
-    }
-    if (model instanceof IInteractionLifeLine) {
-      return "Lifeline";
-    }
-    if (model instanceof IMessage) {
-      return "Message";
-    }
-    // getModelType() is the API's type name ("System", "Package", "Note", ...); the class name
-    // is an obfuscated VP implementation class (e.g. "dgz" for a system boundary).
-    return model.getModelType();
   }
 
   /** " «a, b»" for an element's stereotypes, or "" when it has none. */
@@ -901,19 +1280,17 @@ public abstract class AbstractDiagramMcpTools {
   }
 
   /** Re-anchor an existing connector to the current centers of its two shapes. */
-  protected static void centerConnector(com.vp.plugin.diagram.IConnectorUIModel connector) {
-    com.vp.plugin.diagram.IShapeUIModel from = connector.getFromShape();
-    com.vp.plugin.diagram.IShapeUIModel to = connector.getToShape();
+  protected static void centerConnector(IConnectorUIModel connector) {
+    IShapeUIModel from = connector.getFromShape();
+    IShapeUIModel to = connector.getToShape();
     if (from == null || to == null) {
       return;
     }
     // Aim an actor's lines at its center so they all fan out of one point (house convention
     // C1); by default VP spreads the ends around the figure and its caption.
-    for (com.vp.plugin.diagram.IShapeUIModel shape :
-        new com.vp.plugin.diagram.IShapeUIModel[] {from, to}) {
+    for (IShapeUIModel shape : new IShapeUIModel[] {from, to}) {
       if (shape.getModelElement() instanceof IActor) {
-        shape.setConnectionPointType(
-            com.vp.plugin.diagram.IShapeUIModel.CONNECTION_POINT_TYPE_CENTER);
+        shape.setConnectionPointType(IShapeUIModel.CONNECTION_POINT_TYPE_CENTER);
       }
     }
     connector.clearPoints();
@@ -927,9 +1304,8 @@ public abstract class AbstractDiagramMcpTools {
   }
 
   /** The center point of a shape, in diagram coordinates. */
-  protected static java.awt.Point center(IDiagramElement shape) {
-    return new java.awt.Point(
-        shape.getX() + shape.getWidth() / 2, shape.getY() + shape.getHeight() / 2);
+  protected static Point center(IDiagramElement shape) {
+    return new Point(shape.getX() + shape.getWidth() / 2, shape.getY() + shape.getHeight() / 2);
   }
 
   // --- VP API Accessors ---

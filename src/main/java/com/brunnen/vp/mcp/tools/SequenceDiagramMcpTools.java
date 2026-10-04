@@ -2,8 +2,8 @@ package com.brunnen.vp.mcp.tools;
 
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramUtils;
-import com.brunnen.vp.mcp.util.SequenceDiagramUtils;
 import com.vp.plugin.DiagramManager;
+import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramTypeConstants;
 import com.vp.plugin.diagram.IDiagramUIModel;
 import com.vp.plugin.diagram.IInteractionDiagramUIModel;
@@ -19,8 +19,10 @@ import com.vp.plugin.model.IMessage;
 import com.vp.plugin.model.IModelElement;
 import java.awt.Point;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /** MCP tools for Visual Paradigm Sequence diagram operations. */
 public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
@@ -29,21 +31,17 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
   // opens an activation on the callee, the matching return closes it. State is tracked by model id
   // because VP returns distinct proxies for the same element across calls.
   // diagramName -> lifelineId -> stack of OPEN activation ids (top = innermost execution).
-  private final java.util.Map<String, java.util.Map<String, java.util.Deque<String>>> openStacks =
-      new java.util.HashMap<>();
+  private final Map<String, Map<String, java.util.Deque<String>>> openStacks = new HashMap<>();
   // diagramName -> ids of every activation WE created (to delete VP's auto-created extras).
-  private final java.util.Map<String, java.util.Set<String>> myActivations =
-      new java.util.HashMap<>();
+  private final Map<String, java.util.Set<String>> myActivations = new HashMap<>();
   // Messages anchor to lifelines, so VP creates one small activation per message end (fragmented).
   // We lay one continuous bar per lifeline over them (same blue, spanning first->last activity) so
   // the lifeline reads as a single execution bar. diagramName -> lifelineId -> continuous bar id.
-  private final java.util.Map<String, java.util.Map<String, String>> continuousBarId =
-      new java.util.HashMap<>();
+  private final Map<String, Map<String, String>> continuousBarId = new HashMap<>();
   // Actor lifelines get their covered bar stretched the full diagram length (first message ->
   // last),
   // not just their own active span. diagramName -> set of actor lifeline ids.
-  private final java.util.Map<String, java.util.Set<String>> actorLifelineIds =
-      new java.util.HashMap<>();
+  private final Map<String, java.util.Set<String>> actorLifelineIds = new HashMap<>();
 
   @Tool(
       name = "createSequenceDiagram",
@@ -172,8 +170,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            IInteractionLifeLine lifeline =
-                SequenceDiagramUtils.findLifelineByName(diagram, lifelineName);
+            IInteractionLifeLine lifeline = findLifelineByName(diagram, lifelineName);
             if (lifeline == null) {
               return "Lifeline not found: " + lifelineName;
             }
@@ -293,8 +290,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
             List<String> notFound = new ArrayList<>();
             if (coveredLifelines != null && !coveredLifelines.trim().isEmpty()) {
               for (String lifelineName : coveredLifelines.split(",")) {
-                IInteractionLifeLine lifeline =
-                    SequenceDiagramUtils.findLifelineByName(diagram, lifelineName.trim());
+                IInteractionLifeLine lifeline = findLifelineByName(diagram, lifelineName.trim());
                 if (lifeline != null) {
                   fragment.addCoveredLifeLine(lifeline);
                 } else {
@@ -330,12 +326,11 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            List<IInteractionLifeLine> lifelines = SequenceDiagramUtils.getAllLifelines(diagram);
-            List<IMessage> messages = SequenceDiagramUtils.getAllMessages(diagram);
+            List<IInteractionLifeLine> lifelines = getAllLifelines(diagram);
+            List<IMessage> messages = getAllMessages(diagram);
 
             // Build activation -> lifeline name reverse map
-            java.util.Map<IActivation, String> activationToLifeline =
-                SequenceDiagramUtils.buildActivationToLifelineMap(diagram);
+            Map<IActivation, String> activationToLifeline = buildActivationToLifelineMap(diagram);
 
             StringBuilder report = new StringBuilder();
             report.append("SEQUENCE DIAGRAM REPORT: ").append(diagramName).append("\n");
@@ -393,9 +388,8 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
             Iterator<?> fragIter = diagram.diagramElementIterator();
             while (fragIter.hasNext()) {
               Object obj = fragIter.next();
-              if (obj instanceof com.vp.plugin.diagram.IDiagramElement) {
-                IModelElement model =
-                    ((com.vp.plugin.diagram.IDiagramElement) obj).getModelElement();
+              if (obj instanceof IDiagramElement) {
+                IModelElement model = ((IDiagramElement) obj).getModelElement();
                 if (model instanceof ICombinedFragment) {
                   ICombinedFragment cf = (ICombinedFragment) model;
                   StringBuilder fragStr = new StringBuilder();
@@ -486,8 +480,8 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       boolean async,
       boolean isReturn) {
     // All participants are real lifelines (boundary/entity/control + actor-as-box).
-    IInteractionLifeLine from = SequenceDiagramUtils.findLifelineByName(diagram, fromLifeline);
-    IInteractionLifeLine to = SequenceDiagramUtils.findLifelineByName(diagram, toLifeline);
+    IInteractionLifeLine from = findLifelineByName(diagram, fromLifeline);
+    IInteractionLifeLine to = findLifelineByName(diagram, toLifeline);
     if (from == null) {
       return "From lifeline not found: " + fromLifeline;
     }
@@ -540,7 +534,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
     } else {
       points = new Point[] {new Point(fromCx, y), new Point(toCx, y)};
     }
-    com.vp.plugin.diagram.IDiagramElement msgShape =
+    IDiagramElement msgShape =
         getDiagramManager().createConnector(diagram, message, fromShape, toShape, points);
     if (msgShape != null) {
       // resetCaption() (as in the VP Open API sample) makes the message label render on the arrow.
@@ -577,8 +571,8 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
    */
   private void coverTopBar(
       IInteractionDiagramUIModel diagram, IInteractionLifeLine lifeline, int y) {
-    java.util.Map<String, String> byLifeline =
-        continuousBarId.computeIfAbsent(diagram.getName(), k -> new java.util.HashMap<>());
+    Map<String, String> byLifeline =
+        continuousBarId.computeIfAbsent(diagram.getName(), k -> new HashMap<>());
     String id = byLifeline.get(lifeline.getId());
     IActivationUIModel bar = id != null ? findActivationShapeById(diagram, id) : null;
     if (bar == null) {
@@ -597,7 +591,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
   /** Stretch each actor's covered bar to span the whole diagram (MSG_TOP_Y down to {@code y}). */
   private void extendActorBarsFull(IInteractionDiagramUIModel diagram, int y) {
     java.util.Set<String> actors = actorLifelineIds.get(diagram.getName());
-    java.util.Map<String, String> bars = continuousBarId.get(diagram.getName());
+    Map<String, String> bars = continuousBarId.get(diagram.getName());
     if (actors == null || bars == null) {
       return;
     }
@@ -659,7 +653,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
 
   private java.util.Deque<String> stackOf(String diagramName, String lifelineId) {
     return openStacks
-        .computeIfAbsent(diagramName, k -> new java.util.HashMap<>())
+        .computeIfAbsent(diagramName, k -> new HashMap<>())
         .computeIfAbsent(lifelineId, k -> new java.util.ArrayDeque<>());
   }
 
@@ -728,7 +722,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       }
     }
     if (idx < 1) {
-      idx = SequenceDiagramUtils.getAllMessages(diagram).size() + 1;
+      idx = getAllMessages(diagram).size() + 1;
     }
     return MSG_TOP_Y + (idx - 1) * MSG_STEP_Y;
   }
@@ -794,5 +788,114 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
     if (shape.getHeight() < needed) {
       shape.setBounds(shape.getX(), shape.getY(), shape.getWidth(), needed);
     }
+  }
+
+  // --- Helpers ---
+
+  /**
+   * Find a lifeline by name in a sequence diagram.
+   *
+   * @param diagram the sequence diagram
+   * @param name the lifeline name
+   * @return the lifeline, or null if not found
+   */
+  private static IInteractionLifeLine findLifelineByName(
+      IInteractionDiagramUIModel diagram, String name) {
+    if (diagram == null || name == null) {
+      return null;
+    }
+    Iterator<?> iter = diagram.diagramElementIterator();
+    while (iter.hasNext()) {
+      Object obj = iter.next();
+      if (!(obj instanceof IDiagramElement)) {
+        continue;
+      }
+      IDiagramElement de = (IDiagramElement) obj;
+      IModelElement model = de.getModelElement();
+      if (!(model instanceof IInteractionLifeLine)) {
+        continue;
+      }
+      IInteractionLifeLine lifeline = (IInteractionLifeLine) model;
+      // 1. Model name. When an alias/nickname is set VP returns the nickname here, so this also
+      //    matches references by alias.
+      if (name.equals(lifeline.getName())) {
+        return lifeline;
+      }
+      // 2. Shape caption — addToDiagram sets it to the original lifelineName, which stays stable
+      //    even after a nickname overrides getName(). This is the reliable identifier.
+      if (de instanceof IShapeUIModel && name.equals(((IShapeUIModel) de).getCustomText())) {
+        return lifeline;
+      }
+      // 3. Base classifier name (the className argument).
+      IModelElement classifier = lifeline.getBaseClassifierAsModel();
+      if (classifier != null && name.equals(classifier.getName())) {
+        return lifeline;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Get all lifelines in a sequence diagram.
+   *
+   * @param diagram the sequence diagram
+   * @return list of lifelines
+   */
+  private static List<IInteractionLifeLine> getAllLifelines(IInteractionDiagramUIModel diagram) {
+    List<IInteractionLifeLine> lifelines = new ArrayList<>();
+    Iterator<?> iter = diagram.diagramElementIterator();
+    while (iter.hasNext()) {
+      Object obj = iter.next();
+      if (obj instanceof IDiagramElement) {
+        IModelElement model = ((IDiagramElement) obj).getModelElement();
+        if (model instanceof IInteractionLifeLine) {
+          lifelines.add((IInteractionLifeLine) model);
+        }
+      }
+    }
+    return lifelines;
+  }
+
+  /**
+   * Get all messages in a sequence diagram.
+   *
+   * @param diagram the sequence diagram
+   * @return list of messages
+   */
+  private static List<IMessage> getAllMessages(IInteractionDiagramUIModel diagram) {
+    List<IMessage> messages = new ArrayList<>();
+    Iterator<?> iter = diagram.diagramElementIterator();
+    while (iter.hasNext()) {
+      Object obj = iter.next();
+      if (obj instanceof IDiagramElement) {
+        IModelElement model = ((IDiagramElement) obj).getModelElement();
+        if (model instanceof IMessage) {
+          messages.add((IMessage) model);
+        }
+      }
+    }
+    return messages;
+  }
+
+  /**
+   * Build a reverse map from activation to lifeline name.
+   *
+   * @param diagram the sequence diagram
+   * @return map from IActivation to lifeline name
+   */
+  private static Map<IActivation, String> buildActivationToLifelineMap(
+      IInteractionDiagramUIModel diagram) {
+    Map<IActivation, String> map = new HashMap<>();
+    List<IInteractionLifeLine> lifelines = getAllLifelines(diagram);
+    for (IInteractionLifeLine ll : lifelines) {
+      Iterator<?> iter = ll.activationIterator();
+      while (iter.hasNext()) {
+        Object obj = iter.next();
+        if (obj instanceof IActivation) {
+          map.put((IActivation) obj, ll.getName());
+        }
+      }
+    }
+    return map;
   }
 }

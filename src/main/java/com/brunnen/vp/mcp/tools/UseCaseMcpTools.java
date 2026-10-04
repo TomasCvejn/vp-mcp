@@ -382,19 +382,14 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     String type =
         relationshipType == null ? "" : relationshipType.trim().toLowerCase(java.util.Locale.ROOT);
     List<IRelationship> result = new ArrayList<>();
-    Iterator<?> iter = diagram.diagramElementIterator();
-    while (iter.hasNext()) {
-      Object obj = iter.next();
-      if (!(obj instanceof IDiagramElement)) {
-        continue;
-      }
-      IModelElement model = ((IDiagramElement) obj).getModelElement();
+    for (IDiagramElement de : getDiagramElementsList(diagram)) {
+      IModelElement model = de.getModelElement();
       if (!(model instanceof IRelationship) || result.contains(model)) {
         continue;
       }
       IRelationship rel = (IRelationship) model;
-      String from = rel.getFrom() != null ? rel.getFrom().getName() : null;
-      String to = rel.getTo() != null ? rel.getTo().getName() : null;
+      String from = nameOf(rel.getFrom());
+      String to = nameOf(rel.getTo());
       boolean endpointsMatch =
           (nameA.equals(from) && nameB.equals(to)) || (nameA.equals(to) && nameB.equals(from));
       if (!endpointsMatch) {
