@@ -10,11 +10,14 @@ points **at the actor** = **secondary** actor (the actor receives / is notified)
 
 ## C1 — Each actor's connectors share one anchor point
 
-All association lines of a single actor emanate from **one shared point** at the actor
-symbol (a clean fan out of a single anchor), not from several scattered points along the
-figure.
-- Check: for each actor, do all its lines start at the same point on the actor?
-- Fix: re-anchor every connector of that actor to the one point.
+All association lines of a single actor form **one fan aimed at a single point** (the
+actor's center), not lines scattered over the figure and its name label in different
+directions.
+- Check: for each actor, do all its lines, extended into the figure, meet in one point?
+  Visual Paradigm clips each line at the actor's bounding box, so a fan's start points
+  sit a few to a few dozen pixels apart on the figure's edge; that is expected and **not**
+  a violation. A line starting at the name label, or aimed away from the common point, is.
+- Fix: re-anchor every connector of that actor to its center (`rerouteConnectors`).
 
 ## C2 — A secondary actor's line runs all the way to the actor
 
@@ -29,3 +32,10 @@ Primary actors sit on the **left** of the system boundary; secondary actors sit 
 **right**.
 - Check: are all primary actors left of the boundary and all secondary actors right?
 - Fix: move secondary actors to the right column, primary actors to the left.
+
+## C4 — A Time actor carries the «time» stereotype
+
+An actor that stands for the passing of time (scheduled / periodic triggers, e.g. "Time")
+is drawn with the **«time»** stereotype above its name.
+- Check: does every Time actor show «time»?
+- Fix: add the stereotype (`addActorStereotype(diagram, "Time", "time")`).

@@ -51,6 +51,32 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
   mostly un-crossed. Overlapping actors on the same side are spread apart by the pure, unit-tested
   `UseCaseMcpTools.stackYs` helper (see `UseCaseLayoutTest`).
 
+### Iterative diagram fixing with review agents (2026-10-04)
+
+Loop: edit via MCP → `exportDiagramImage` → `diagram-reviewer` + `visual-reviewer` agents in
+parallel → fix → repeat. Plugin fixes found along the way (verified live on "SmartTaxIS Use Cases"):
+
+- **`addSystemBoundary` is idempotent**: it reuses the diagram's existing `ISystem` boundary
+  instead of creating a new one (repeated calls used to stack duplicate boxes), moves use cases
+  and child shapes of further boundaries into it and deletes those once empty.
+- **`removeDiagramElement`** detaches a nested shape from its parent first and reports a failure
+  when the element is still on the diagram (it used to claim "Removed" for boundaries).
+- **Captions follow moved shapes**: `setElementBounds`, actor placement in `addSystemBoundary`
+  and `centerConnector` call `resetCaption()` (`setRequestResetCaption` alone had no effect), so
+  actor names and «include»/«extend» labels no longer stay at the old position.
+- **C1 actor fans**: `centerConnector` sets actor shapes to
+  `CONNECTION_POINT_TYPE_CENTER`, so all of an actor's lines aim at its center. VP ignores explicit
+  connector end points (and rewrites them on render), so a literal single start point is not
+  possible; `review/usecase-conventions.md` C1 was clarified accordingly. Actor shapes of 40x60
+  (instead of 160x60) make lines reach the figure.
+- **`getRelationshipDetails`** works on any diagram type (connector points, diffs, captions).
+- **`addActorStereotype(diagram, actor, stereotype)`**: «system» for actors that are other systems
+  (catalog §1.15), «time» for the Time actor (house convention C4).
+- **`exportDiagramImage`**: diagram-not-found is checked before the activation retry loop
+  (SpotBugs `NP_BOOLEAN_RETURN_NULL`).
+- Note: `pom.xml` hardcodes `skipTests=true`, so `./run test` runs no tests; run them with
+  `java -cp target/classes:target/test-classes:<deps> org.junit.runner.JUnitCore <TestClass>`.
+
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 
 - **Scoped lookups**: `addAttribute(..., diagramName)` only uses the class shown on that diagram, so

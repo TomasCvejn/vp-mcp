@@ -586,7 +586,20 @@ public abstract class AbstractDiagramMcpTools {
             if (element == null) {
               return "Element not found on diagram: " + elementName;
             }
+            // A shape nested in a container (e.g. a use case in a system boundary) is owned by
+            // its parent shape, so detach it there first.
+            if (element instanceof com.vp.plugin.diagram.IShapeUIModel) {
+              IDiagramElement parent = ((com.vp.plugin.diagram.IShapeUIModel) element).getParent();
+              if (parent != null) {
+                parent.removeChild((com.vp.plugin.diagram.IShapeUIModel) element);
+              }
+            }
             diagram.removeDiagramElement(element);
+            for (IDiagramElement de : getDiagramElementsList(diagram)) {
+              if (de.getId().equals(element.getId())) {
+                return "Could not remove element '" + elementName + "': it is still on the diagram";
+              }
+            }
             return "Removed element '" + elementName + "' from diagram '" + diagramName + "'";
           });
     } catch (Exception e) {
@@ -722,12 +735,23 @@ public abstract class AbstractDiagramMcpTools {
     if (from == null || to == null) {
       return;
     }
+    // Aim an actor's lines at its center so they all fan out of one point (house convention
+    // C1); by default VP spreads the ends around the figure and its caption.
+    for (com.vp.plugin.diagram.IShapeUIModel shape :
+        new com.vp.plugin.diagram.IShapeUIModel[] {from, to}) {
+      if (shape.getModelElement() instanceof IActor) {
+        shape.setConnectionPointType(
+            com.vp.plugin.diagram.IShapeUIModel.CONNECTION_POINT_TYPE_CENTER);
+      }
+    }
     connector.clearPoints();
     connector.addPoint(center(from));
     connector.addPoint(center(to));
     connector.setUseFromShapeCenter(true);
     connector.setUseToShapeCenter(true);
     connector.setRequestRebuild(true);
+    // Re-place the «include»/«extend» caption on the new route instead of the old one.
+    connector.resetCaption();
   }
 
   /** The center point of a shape, in diagram coordinates. */
