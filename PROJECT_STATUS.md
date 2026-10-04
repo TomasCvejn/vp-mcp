@@ -233,6 +233,15 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `review/<type>-checklist.md` too and cites those ids.
   §1.10 (textual specification, Figures 19–26) and §1.14 (Figures 32–33) are left out of the
   handbook on purpose (user's decision); its intro now says so.
+- **Skill flow**: the AI lists the assumptions it made and asks the user about the ones that
+  change the spec, in one question, before building (one question instead of a review round);
+  `diagram-reviewer` gets the requirements (optional input: every requirement covered, nothing
+  invented, ambiguities reported as questions); `visual-reviewer` runs only when `checkLayout`
+  is not OK (with clean geometry it found nits only in three runs).
+- **`UseCaseGrid`**: a use case also linked to another primary actor goes last in its owner's
+  rows (fitness center: Register Membership, linked to Member and Receptionist, was between
+  Member's use cases and Receptionist's line crossed Member's line to Reserve Class; checkLayout
+  and both reviewers reported it). Verified live: the same spec rebuilt with `checkLayout` OK.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 
