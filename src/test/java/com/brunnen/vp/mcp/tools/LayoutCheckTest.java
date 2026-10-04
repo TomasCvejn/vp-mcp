@@ -97,4 +97,23 @@ public class LayoutCheckTest {
     assertEquals(
         new Point(60, 104), LayoutCheck.labelSpot(own, Collections.singletonList(above), 80, 16));
   }
+
+  @Test
+  public void captionsCountAsShapesExceptAgainstTheirOwnActor() {
+    Box upper = new Box("Traffic", false, false, 100, 100, 40, 60);
+    Box upperCaption = Box.caption("Traffic", 80, 160, 80, 32);
+    Box lower = new Box("Payment", false, false, 100, 185, 40, 60); // head inside the caption
+    Box lowerCaption = Box.caption("Payment", 80, 245, 80, 32);
+    List<String> issues =
+        check(
+            Arrays.asList(upper, upperCaption, lower, lowerCaption),
+            // The actor's own line may run through its caption; another line may not.
+            new Line("U-Traffic", "U", "Traffic", new Point(85, 200), new Point(120, 130)),
+            new Line("V-Payment", "V", "Payment", new Point(130, 170), new Point(170, 170)));
+    assertEquals(
+        Arrays.asList(
+            "overlap: 'caption of Traffic' and 'Payment'",
+            "line through shape: V-Payment crosses 'caption of Traffic'"),
+        issues);
+  }
 }
