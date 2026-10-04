@@ -2,7 +2,6 @@ package com.brunnen.vp.mcp.tools;
 
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramUtils;
-import com.brunnen.vp.mcp.util.ErdUtils;
 import com.vp.plugin.DiagramManager;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramTypeConstants;
@@ -225,14 +224,14 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            List<IDBTable> tables = ErdUtils.getTablesInDiagram(diagram);
+            List<IDBTable> tables = getTablesInDiagram(diagram);
             if (tables.isEmpty()) {
               return "No tables found in diagram: " + diagramName;
             }
 
             StringBuilder ddl = new StringBuilder();
             for (IDBTable table : tables) {
-              ddl.append(ErdUtils.generateCreateTableSql(table)).append("\n\n");
+              ddl.append(generateCreateTableSql(table)).append("\n\n");
             }
             return ddl.toString();
           });
@@ -253,7 +252,7 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            List<IDBTable> tables = ErdUtils.getTablesInDiagram(diagram);
+            List<IDBTable> tables = getTablesInDiagram(diagram);
 
             // Build table -> user name map from diagram captions
             java.util.Map<IDBTable, String> tableNames = new java.util.LinkedHashMap<>();
@@ -352,5 +351,74 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
       }
     }
     return null;
+  }
+
+  // --- Helpers ---
+
+  /**
+   * Get all tables in a specific ER diagram.
+   *
+   * @param diagram the ER diagram
+   * @return list of tables in the diagram
+   */
+  private static List<IDBTable> getTablesInDiagram(IDiagramUIModel diagram) {
+    List<IDBTable> tables = new ArrayList<>();
+    Iterator<?> iter = diagram.diagramElementIterator();
+    while (iter.hasNext()) {
+      Object obj = iter.next();
+      if (obj instanceof IDiagramElement) {
+        IModelElement model = ((IDiagramElement) obj).getModelElement();
+        if (model instanceof IDBTable) {
+          tables.add((IDBTable) model);
+        }
+      }
+    }
+    return tables;
+  }
+
+  /**
+   * Generate CREATE TABLE DDL for a table.
+   *
+   * @param table the table
+   * @return the DDL string
+   */
+  private static String generateCreateTableSql(IDBTable table) {
+    StringBuilder sql = new StringBuilder();
+    sql.append("CREATE TABLE ").append(table.getName()).append(" (\n");
+
+    List<String> primaryKeys = new ArrayList<>();
+    Iterator<?> colIter = table.dBColumnIterator();
+    boolean first = true;
+    while (colIter.hasNext()) {
+      Object obj = colIter.next();
+      if (obj instanceof IDBColumn) {
+        IDBColumn col = (IDBColumn) obj;
+        if (!first) {
+          sql.append(",\n");
+        }
+        sql.append("  ").append(col.getName()).append(" ").append(col.getTypeInText());
+        if (col.getLength() > 0) {
+          sql.append("(").append(col.getLength());
+          if (col.getScale() > 0) {
+            sql.append(",").append(col.getScale());
+          }
+          sql.append(")");
+        }
+        if (!col.isNullable()) {
+          sql.append(" NOT NULL");
+        }
+        if (col.isPrimaryKey()) {
+          primaryKeys.add(col.getName());
+        }
+        first = false;
+      }
+    }
+
+    if (!primaryKeys.isEmpty()) {
+      sql.append(",\n  PRIMARY KEY (").append(String.join(", ", primaryKeys)).append(")");
+    }
+
+    sql.append("\n);");
+    return sql.toString();
   }
 }

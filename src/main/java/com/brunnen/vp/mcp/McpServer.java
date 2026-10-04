@@ -28,15 +28,16 @@ import java.util.concurrent.Executors;
 public class McpServer {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
-  // Bind on all interfaces; this is a listen address, not a remote endpoint.
-  private static final String BIND_ADDRESS = "0.0.0.0"; // NOPMD AvoidUsingHardCodedIP
+  // Loopback only: the MCP clients run on the same machine as Visual Paradigm, and the tools can
+  // edit and save the open project, so they must not be reachable from the network.
+  private static final String BIND_ADDRESS = "127.0.0.1"; // NOPMD AvoidUsingHardCodedIP
   private Undertow server;
   private final List<ToolDefinition> tools = new ArrayList<>();
   // sessionId -> the live SSE output stream, so message responses are pushed back over SSE (MCP SSE
   // transport). Without this the client waits forever for a response that was only sent as the POST
   // body.
   private final Map<String, OutputStream> sseStreams = new ConcurrentHashMap<>();
-  private int port = 2026;
+  private static final int PORT = 2026;
 
   /** Register tool objects (scan for @Tool annotations). Skips duplicate tool names. */
   public void registerTools(Object... toolObjects) {
@@ -50,27 +51,17 @@ public class McpServer {
     }
   }
 
-  /** Register a single proxy tool (used by Docker proxy mode). */
-  public void registerProxyTool(ToolDefinition tool) {
-    tools.add(tool);
-  }
-
-  /** Set the server port (default 2026). */
-  public void setPort(int port) {
-    this.port = port;
-  }
-
   /** Start the MCP server. */
   public void start() {
     server =
         Undertow.builder()
-            .addHttpListener(port, BIND_ADDRESS)
+            .addHttpListener(PORT, BIND_ADDRESS)
             .setHandler(this::handleRequest)
             .setIoThreads(4)
             .setWorkerThreads(16)
             .build();
     server.start();
-    System.out.println("MCP Server started on port " + port + " with " + tools.size() + " tools");
+    System.out.println("MCP Server started on port " + PORT + " with " + tools.size() + " tools");
   }
 
   /** Stop the MCP server. */
@@ -82,10 +73,6 @@ public class McpServer {
     }
   }
 
-  public boolean isRunning() {
-    return server != null;
-  }
-
   // --- Request Router ---
 
   private void handleRequest(HttpServerExchange exchange) throws Exception {
@@ -94,10 +81,6 @@ public class McpServer {
       handleSse(exchange);
     } else if ("/mcp/messages".equals(path)) {
       handleMessage(exchange);
-    } else if ("/api/tools".equals(path)) {
-      handleApiTools(exchange);
-    } else if ("/api/execute".equals(path)) {
-      handleApiExecute(exchange);
     } else {
       exchange.setStatusCode(404);
       exchange.endExchange();
@@ -348,121 +331,6 @@ public class McpServer {
 
   private String invokeTool(ToolDefinition tool, JsonNode argsNode) throws Exception {
     return tool.execute(argsNode);
-  }
-
-  // --- VP API Endpoints (for Docker proxy) ---
-
-  private void handleApiTools(HttpServerExchange exchange) {
-    if (!exchange.getRequestMethod().equals(Methods.GET)) {
-      exchange.setStatusCode(405);
-      exchange.endExchange();
-      return;
-    }
-
-    exchange.dispatch();
-    exchange.startBlocking();
-    Executors.newSingleThreadExecutor()
-        .execute(
-            () -> {
-              try {
-                ArrayNode toolsArray = MAPPER.createArrayNode();
-                for (ToolDefinition tool : tools) {
-                  ObjectNode toolObj = MAPPER.createObjectNode();
-                  toolObj.put("name", tool.getName());
-                  toolObj.put("description", tool.getDescription());
-                  toolObj.set("inputSchema", tool.getInputSchema());
-                  toolsArray.add(toolObj);
-                }
-                byte[] resp = MAPPER.writeValueAsBytes(toolsArray);
-                exchange.setStatusCode(200);
-                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
-                exchange
-                    .getResponseHeaders()
-                    .put(new HttpString("Access-Control-Allow-Origin"), "*");
-                exchange.getOutputStream().write(resp);
-                exchange.getOutputStream().close();
-              } catch (IOException | RuntimeException e) {
-                exchange.setStatusCode(500);
-                exchange.endExchange();
-              }
-            });
-  }
-
-  private void handleApiExecute(HttpServerExchange exchange) {
-    if (exchange.getRequestMethod().equals(Methods.OPTIONS)) {
-      exchange.getResponseHeaders().put(new HttpString("Access-Control-Allow-Origin"), "*");
-      exchange
-          .getResponseHeaders()
-          .put(new HttpString("Access-Control-Allow-Methods"), "POST, OPTIONS");
-      exchange
-          .getResponseHeaders()
-          .put(new HttpString("Access-Control-Allow-Headers"), "Content-Type");
-      exchange.setStatusCode(204);
-      exchange.endExchange();
-      return;
-    }
-
-    if (!exchange.getRequestMethod().equals(Methods.POST)) {
-      exchange.setStatusCode(405);
-      exchange.endExchange();
-      return;
-    }
-
-    exchange.getResponseHeaders().put(new HttpString("Access-Control-Allow-Origin"), "*");
-    exchange.dispatch();
-    exchange.startBlocking();
-
-    Executors.newSingleThreadExecutor()
-        .execute(
-            () -> {
-              try {
-                String body =
-                    new String(exchange.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                JsonNode request = MAPPER.readTree(body);
-
-                String toolName = request.has("toolName") ? request.get("toolName").asText() : "";
-                JsonNode argsNode = request.get("arguments");
-
-                ToolDefinition tool = null;
-                for (ToolDefinition t : tools) {
-                  if (t.getName().equals(toolName)) {
-                    tool = t;
-                    break;
-                  }
-                }
-
-                ObjectNode response = MAPPER.createObjectNode();
-                if (tool == null) {
-                  response.put("error", "Unknown tool: " + toolName);
-                  byte[] resp = MAPPER.writeValueAsBytes(response);
-                  exchange.setStatusCode(400);
-                  exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
-                  exchange.getOutputStream().write(resp);
-                } else {
-                  try {
-                    String result = invokeTool(tool, argsNode);
-                    response.put("result", result);
-                  } catch (Exception e) {
-                    response.put("error", e.getMessage());
-                  }
-                  byte[] resp = MAPPER.writeValueAsBytes(response);
-                  exchange.setStatusCode(200);
-                  exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
-                  exchange.getOutputStream().write(resp);
-                }
-                exchange.getOutputStream().close();
-              } catch (IOException | RuntimeException e) {
-                try {
-                  exchange.setStatusCode(500);
-                  exchange
-                      .getOutputStream()
-                      .write(("Error: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
-                  exchange.getOutputStream().close();
-                } catch (IOException suppressed) {
-                  System.err.println("Failed to send error response: " + suppressed.getMessage());
-                }
-              }
-            });
   }
 
   // --- JSON-RPC Helpers ---

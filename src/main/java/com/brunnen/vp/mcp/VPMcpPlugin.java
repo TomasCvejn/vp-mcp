@@ -22,7 +22,6 @@ public final class VPMcpPlugin implements VPPlugin {
 
     try {
       mcpServer = new McpServer();
-      mcpServer.setPort(2026);
       mcpServer.registerTools(
           new UseCaseMcpTools(),
           new ClassDiagramMcpTools(),

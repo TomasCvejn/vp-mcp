@@ -17,9 +17,9 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
 
 | Category | Tools | Count |
 |----------|-------|-------|
-| Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts, addStereotype, checkLayout, renameElement | 8 |
+| Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts, addStereotype, checkLayout, renameElement, setElementBounds, rerouteConnectors, exportDiagramImage, getRelationshipDetails | 12 |
 | Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, generateReport | 11 |
-| Class | create, addClass, addAttribute, addOperation, addAssociation, addGeneralization, addAggregation, addComposition, addDependency, addRealization, addInterface, addPackage, setClassColor, generateReport, setElementBounds, addStereotypeToClasses, removeRelationship, setAssociationProperties, getRelationshipDetails, rerouteConnectors, layoutConnectorLabels, exportDiagramImage | 22 |
+| Class | create, addClass, addAttribute, addOperation, addAssociation, addGeneralization, addAggregation, addComposition, addDependency, addRealization, addInterface, addPackage, setClassColor, generateReport, addStereotypeToClasses, removeRelationship, setAssociationProperties, layoutConnectorLabels | 18 |
 | Project | newProject, saveProject, saveProjectAs, getProjectInfo | 4 |
 | ERD | create, addTable, addColumn, addForeignKey, addTableRelationship, generateDdl, generateReport | 7 |
 | Sequence | create, addLifeline, addActivation, addMessage, addReturnMessage, addCombinedFragment, generateReport | 7 |
@@ -102,6 +102,17 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   live on SmartTaxIS: boundary dissolved (14 use cases, 8 actors, 18 links kept) and restored,
   actor and boundary renamed and back, duplicate name refused, `checkLayout` OK. Re-targeting a
   relationship was skipped: remove + add loses nothing for use case links.
+- **Generic tools live in `AbstractDiagramMcpTools`**: `setElementBounds`, `rerouteConnectors`,
+  `exportDiagramImage`, `getRelationshipDetails` and the project tools moved out of
+  `ClassDiagramMcpTools` (names unchanged; the server registers each tool name once). Only
+  class-specific tools remain in `ClassDiagramMcpTools`.
+- **Ponytail audit cuts**: removed the undocumented Docker proxy mode (`StandaloneServer`,
+  `ProxyToolDefinition`, `/api/tools` + `/api/execute`, Dockerfile, compose, stub generator) and
+  `test_connect.py`; MCP clients connect straight to `http://localhost:2026/sse`. The server now
+  binds to 127.0.0.1 (it bound 0.0.0.0 for the container; `/api/execute` ran any tool without
+  auth). Single-caller `ClassDiagramUtils`/`ErdUtils`/`SequenceDiagramUtils` inlined into their
+  tool classes; `getSemanticTypeName` uses `getModelType()` with 4 renames (checked against the
+  `IModelElementFactory.MODEL_TYPE_*` constants); dead helpers and `./run` help entries removed.
 - **`getDiagramElements`** lists stereotypes (`Actor: Time «time»`) and where an association draws
   arrowheads (`{arrow at: Payment Provider}`); unknown element types use `getModelType()`
   (`System: SmartTaxIS`) instead of VP's obfuscated class name (`dgz`), also in getElementCounts.
@@ -155,10 +166,9 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
 | `tool/Tool.java` | Custom `@Tool` annotation |
 | `tool/ToolDefinition.java` | Reflection-based tool scanning + JSON Schema generation (hierarchy-aware) |
 | `VPMcpPlugin.java` | VP plugin entry point, registers tools with McpServer |
-| `StandaloneServer.java` | Standalone entry for Docker (no VP dependency) |
 | `tools/AbstractDiagramMcpTools.java` | Base class with zone-aware positioning, layout, and management tools |
-| `tools/UseCaseMcpTools.java` | 5 use case diagram tools |
-| `tools/ClassDiagramMcpTools.java` | 22 class diagram tools + 4 project tools |
+| `tools/UseCaseMcpTools.java` | 11 use case diagram tools |
+| `tools/ClassDiagramMcpTools.java` | 18 class diagram tools (generic and project tools live in the base class) |
 | `tools/ErdMcpTools.java` | 7 ERD tools |
 | `tools/SequenceDiagramMcpTools.java` | 7 sequence diagram tools |
 | `util/DiagramUtils.java` | Shared VP API helpers (diagram/element lookup) |
@@ -171,20 +181,10 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
 - **VP OpenAPI 17.2** - Visual Paradigm plugin API (system scope)
 - **Java 11** - Target runtime
 
-### Docker
-
-```bash
-./run docker-build   # Build Docker image (Java 11)
-./run docker-up      # Start MCP server on port 2026
-./run docker-down    # Stop MCP server
-./run docker-logs    # View server logs
-```
-
-Docker uses multi-stage build with VP API stub JAR for compilation.
-
 ### MCP Endpoints
 
-- **SSE**: `http://localhost:2026/sse` - Establish SSE connection, returns session ID
+- **SSE**: `http://localhost:2026/sse` - Establish SSE connection, returns session ID (bound to
+  127.0.0.1 only: the tools edit and save the open project)
 - **Messages**: `http://localhost:2026/mcp/messages?sessionId=<id>` - Send JSON-RPC requests
 
 ### Verified
@@ -193,7 +193,6 @@ Docker uses multi-stage build with VP API stub JAR for compilation.
 - [x] SSE transport works (endpoint event, keep-alive, session management)
 - [x] MCP protocol: initialize, tools/list, tools/call
 - [x] 35 tools registered and invocable via JSON-RPC
-- [x] Docker build succeeds with Java 11
 - [x] VP plugin loads successfully (verified in VP log)
 - [x] Connectors use `createConnector()` with IDiagramElement refs (not `createDiagramElement`)
 - [x] Diagram management tools: listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts

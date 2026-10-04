@@ -27,7 +27,7 @@ The plugin includes an embedded MCP server that:
 
 #### Available MCP Tools (59 total)
 
-##### Diagram Management (8 tools)
+##### Diagram Management (12 tools)
 - **listDiagrams()**: List all diagrams in the project
 - **getDiagramElements(diagramName)**: List elements of a diagram with details
 - **autoLayoutDiagram(diagramName)**: Apply automatic layout to a diagram
@@ -36,6 +36,10 @@ The plugin includes an embedded MCP server that:
 - **getElementCounts(diagramName)**: Count elements by type in a diagram
 - **addStereotype(diagramName, elementName, stereotype)**: Apply a stereotype (e.g. System, Time) to any element
 - **checkLayout(diagramName)**: Geometric check for overlapping shapes, lines through shapes and crossing lines (run after exportDiagramImage)
+- **setElementBounds(diagramName, elementName, x, y, width, height)**: Set element position and size
+- **rerouteConnectors(diagramName)**: Re-anchor all connectors after moving shapes
+- **exportDiagramImage(diagramName, filePath)**: Export a diagram to a PNG image
+- **getRelationshipDetails(diagramName)**: JSON audit of any diagram: classes, relationships with both ends (multiplicity, navigability), connector points and labels
 
 ##### Use Case Diagram (11 tools)
 - **createUseCaseDiagram(diagramName)**: Create new use case diagrams
@@ -50,7 +54,7 @@ The plugin includes an embedded MCP server that:
 - **layoutUseCaseDiagram(diagramName, systemName)**: House-style layout in one call: use case grid, boundary, actors, lines
 - **generateUseCaseReport(diagramName)**: Generate use case analysis report
 
-##### Class Diagram (22 tools)
+##### Class Diagram (18 tools)
 - **createClassDiagram(diagramName)**: Create new class diagrams
 - **addClass(diagramName, className)**: Add classes to diagrams
 - **addAttribute(className, attributeName, attributeType, visibility)**: Add attributes to classes
@@ -64,14 +68,10 @@ The plugin includes an embedded MCP server that:
 - **addInterface(diagramName, interfaceName)**: Add interfaces with stereotype
 - **addPackage(diagramName, packageName)**: Add packages to diagrams
 - **setClassColor(diagramName, className, color)**: Set a class box fill color
-- **setElementBounds(diagramName, elementName, x, y, width, height)**: Set element position and size
 - **addStereotypeToClasses(diagramName, classNames, stereotype)**: Apply a stereotype to classes
 - **removeRelationship(diagramName, fromClass, toClass)**: Remove a relationship model element
 - **setAssociationProperties(...)**: Edit association/aggregation/composition ends and roles
-- **getRelationshipDetails(diagramName)**: Return a JSON audit of classes and relationships
-- **rerouteConnectors(diagramName)**: Re-anchor all connectors after moving shapes
 - **layoutConnectorLabels(diagramName)**: Position multiplicity and association-name labels
-- **exportDiagramImage(diagramName, filePath)**: Export a diagram to a PNG image
 - **generateClassReport(diagramName)**: Generate class diagram analysis report
 
 ##### Project (4 tools)

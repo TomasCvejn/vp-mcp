@@ -24,22 +24,6 @@ public class ToolDefinition {
     this.method = method;
   }
 
-  /** Constructor for proxy tools (no local method). */
-  protected ToolDefinition(
-      String name, String description, com.fasterxml.jackson.databind.JsonNode inputSchema) {
-    this.name = name;
-    this.description = description;
-    if (inputSchema instanceof ObjectNode) {
-      this.inputSchema = (ObjectNode) inputSchema;
-    } else {
-      // Deep-convert any JsonNode to ObjectNode
-      ObjectMapper mapper = new ObjectMapper();
-      this.inputSchema = mapper.convertValue(inputSchema, ObjectNode.class);
-    }
-    this.target = null;
-    this.method = null;
-  }
-
   public String getName() {
     return name;
   }
@@ -52,11 +36,7 @@ public class ToolDefinition {
     return inputSchema == null ? null : inputSchema.deepCopy();
   }
 
-  public Object getTarget() {
-    return target;
-  }
-
-  /** Execute this tool with the given arguments. Override in subclasses for proxy behavior. */
+  /** Execute this tool with the given arguments. */
   public String execute(com.fasterxml.jackson.databind.JsonNode argsNode) throws Exception {
     Parameter[] params = method.getParameters();
     Object[] args = new Object[params.length];
