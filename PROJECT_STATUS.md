@@ -211,6 +211,11 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
 - Verified live: shared `Time` (with its «time») built on a second diagram, SmartTaxIS
   unchanged (`checkLayout` OK), `replace` rebuilt a partly built diagram; after the planner fix
   the bike sharing spec builds with `checkLayout` OK and no manual move, over the new transport.
+- **Server instructions**: `initialize` returns `instructions` (`McpServer.INSTRUCTIONS`, tested
+  in `McpServerTest`), which MCP clients show to the model next to the 60 tools: getProjectInfo
+  guard, a use case diagram is one `buildUseCaseDiagram` (rebuilt with `replace=true`), then
+  `exportDiagramImage` + `checkLayout`, `rerouteConnectors` after manual moves. Verified live: after
+  a reconnect Claude Code shows them as the server's instructions.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

@@ -41,6 +41,16 @@ public class McpServer {
   // body.
   private final Map<String, OutputStream> sseStreams = new ConcurrentHashMap<>();
   private static final int PORT = 2026;
+  // Sent once at initialize; MCP clients show it to the model next to the tool list.
+  static final String INSTRUCTIONS =
+      "Edits the project open in Visual Paradigm. Start with getProjectInfo: stale=true means"
+          + " restart Visual Paradigm first; never save or discard the project unless asked."
+          + " Elements are found by name within a diagram.\n"
+          + "Use case diagram: one buildUseCaseDiagram call with the whole JSON spec (it"
+          + " validates, builds, lays out and runs checkLayout); to change it, edit the spec and"
+          + " call it again with replace=true instead of patching with single-step tools.\n"
+          + "After changing any diagram: exportDiagramImage to look at it, and checkLayout for"
+          + " overlaps and crossings. After moving shapes by hand: rerouteConnectors.";
 
   /** Register tool objects (scan for @Tool annotations). Skips duplicate tool names. */
   public void registerTools(Object... toolObjects) {
@@ -227,7 +237,7 @@ public class McpServer {
 
   // --- MCP Protocol ---
 
-  private JsonNode processRequest(JsonNode request) {
+  JsonNode processRequest(JsonNode request) {
     String method = request.has("method") ? request.get("method").asText() : "";
     JsonNode id = request.get("id");
     JsonNode params = request.get("params");
@@ -255,6 +265,7 @@ public class McpServer {
     result.set("serverInfo", serverInfo);
 
     result.put("protocolVersion", "2024-11-05");
+    result.put("instructions", INSTRUCTIONS);
 
     ObjectNode capabilities = MAPPER.createObjectNode();
     ObjectNode toolsCap = MAPPER.createObjectNode();
