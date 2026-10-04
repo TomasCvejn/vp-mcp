@@ -557,6 +557,17 @@ public abstract class AbstractDiagramMcpTools {
                 }
                 sb.append(" at (").append(de.getX()).append(",").append(de.getY());
                 sb.append(") size ").append(de.getWidth()).append("x").append(de.getHeight());
+                ICaptionUIModel cap = outsideCaption(de);
+                if (cap != null) {
+                  sb.append(" caption at (")
+                      .append(cap.getX())
+                      .append(",")
+                      .append(cap.getY())
+                      .append(") size ")
+                      .append(cap.getWidth())
+                      .append("x")
+                      .append(cap.getHeight());
+                }
                 sb.append("\n");
               }
             }
@@ -616,6 +627,7 @@ public abstract class AbstractDiagramMcpTools {
       description =
           "Geometric layout check of a diagram: overlapping shapes, shapes straddling a system"
               + " boundary or package edge, lines running through a shape they do not connect,"
+              + " captions drawn outside their shape (actor names) colliding with shapes or lines,"
               + " and crossing lines. Returns 'OK' or one issue per line")
   public String checkLayout(String diagramName) {
     try {
@@ -661,6 +673,18 @@ public abstract class AbstractDiagramMcpTools {
                         de.getY(),
                         de.getWidth(),
                         de.getHeight()));
+                // A caption drawn outside its shape (an actor's name below the figure) can
+                // collide with other shapes too; captions inside their shape cannot.
+                ICaptionUIModel cap = outsideCaption(de);
+                if (cap != null) {
+                  boxes.add(
+                      LayoutCheck.Box.caption(
+                          model.getName(),
+                          cap.getX(),
+                          cap.getY(),
+                          cap.getWidth(),
+                          cap.getHeight()));
+                }
               }
             }
             List<String> issues = LayoutCheck.check(boxes, lines);
@@ -1270,6 +1294,28 @@ public abstract class AbstractDiagramMcpTools {
         nav == IAssociationEnd.NAVIGABLE_NAVIGABLE
             ? "navigable"
             : nav == IAssociationEnd.NAVIGABLE_NON_NAVIGABLE ? "non-navigable" : "unspecified");
+  }
+
+  /**
+   * The shape's visible caption when VP draws it outside the shape (e.g. an actor's name below the
+   * figure), else null. Such a caption's bounds are absolute diagram coordinates; a caption inside
+   * its shape (center or inside-* sides) has bounds relative to the shape instead.
+   */
+  protected static ICaptionUIModel outsideCaption(IDiagramElement shape) {
+    ICaptionUIModel cap = shape.getCaptionUIModel();
+    if (cap == null || !cap.isVisible() || cap.getWidth() <= 0 || cap.getHeight() <= 0) {
+      return null;
+    }
+    switch (cap.getSide()) {
+      case ICaptionUIModel.SIDE_NORTH:
+      case ICaptionUIModel.SIDE_EAST:
+      case ICaptionUIModel.SIDE_SOUTH:
+      case ICaptionUIModel.SIDE_WEST:
+      case ICaptionUIModel.SIDE_FREEMOVE:
+        return cap;
+      default:
+        return null;
+    }
   }
 
   // --- Type Name Helper ---

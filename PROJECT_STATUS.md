@@ -107,6 +107,14 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `exportDiagramImage`, `getRelationshipDetails` and the project tools moved out of
   `ClassDiagramMcpTools` (names unchanged; the server registers each tool name once). Only
   class-specific tools remain in `ClassDiagramMcpTools`.
+- **`checkLayout` checks captions drawn outside their shape** (an actor's name below the figure):
+  they count as boxes that must not overlap other shapes/captions or carry foreign lines (the
+  actor's own lines are exempt). VP's caption coordinates depend on the side: outside captions
+  (`SIDE_NORTH/EAST/SOUTH/WEST/FREEMOVE`) are absolute, inside ones (`SIDE_CENTER`, `INSIDE*`) are
+  relative to the shape and are skipped (`outsideCaption`). `getDiagramElements` lists outside
+  captions ("caption at (x,y) size wxh"). Verified live on SmartTaxIS: clean diagram OK; moving
+  Payment Provider 25 px up into Traffic Provider's «system» caption reported
+  "overlap: 'caption of Traffic Provider' and 'Payment Provider'".
 - **Compact use case rows**: `layoutUseCaseDiagram` puts rows 90 px apart (was 110; 30 px between
   ellipses), so tall diagrams are ~16 % shorter (Wolt boundary 1460 -> 1220 px). Actors stack with
   a 30 px gap so one-row-apart actors stay level with their use cases; an actor with a stereotype

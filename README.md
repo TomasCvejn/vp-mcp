@@ -35,7 +35,7 @@ The plugin includes an embedded MCP server that:
 - **renameElement(diagramName, elementName, newName, elementType)**: Rename an element (refuses a name already used on the diagram; optional elementType, e.g. Actor, picks one of several same-named elements)
 - **getElementCounts(diagramName)**: Count elements by type in a diagram
 - **addStereotype(diagramName, elementName, stereotype)**: Apply a stereotype (e.g. System, Time) to any element
-- **checkLayout(diagramName)**: Geometric check for overlapping shapes, lines through shapes and crossing lines (renders the diagram first, so routes are current)
+- **checkLayout(diagramName)**: Geometric check for overlapping shapes, lines through shapes, actor name captions colliding with shapes or lines, and crossing lines (renders the diagram first, so routes are current)
 - **setElementBounds(diagramName, elementName, x, y, width, height)**: Set element position and size
 - **rerouteConnectors(diagramName)**: Re-anchor all connectors after moving shapes
 - **exportDiagramImage(diagramName, filePath)**: Export a diagram to a PNG image

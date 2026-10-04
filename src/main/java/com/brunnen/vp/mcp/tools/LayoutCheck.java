@@ -23,12 +23,32 @@ final class LayoutCheck {
     final boolean ellipse;
     final boolean container;
     final Rectangle2D bounds;
+    // For a caption drawn outside its shape (an actor's name): the shape it labels, else null.
+    final String owner;
 
     Box(String name, boolean ellipse, boolean container, int x, int y, int w, int h) {
+      this(name, ellipse, container, x, y, w, h, null);
+    }
+
+    private Box(
+        String name, boolean ellipse, boolean container, int x, int y, int w, int h, String owner) {
       this.name = name;
       this.ellipse = ellipse;
       this.container = container;
       this.bounds = new Rectangle2D.Double(x, y, w, h);
+      this.owner = owner;
+    }
+
+    /** The caption of shape {@code owner}, drawn outside it (e.g. below an actor). */
+    static Box caption(String owner, int x, int y, int w, int h) {
+      return new Box("caption of " + owner, false, false, x, y, w, h, owner);
+    }
+
+    /** Whether the two boxes are a shape and its own caption, or two captions of one shape. */
+    boolean sameElementAs(Box other) {
+      String mine = owner != null ? owner : name;
+      String theirs = other.owner != null ? other.owner : other.name;
+      return mine.equals(theirs);
     }
 
     Area area(double inset) {
@@ -76,7 +96,7 @@ final class LayoutCheck {
         Box a = boxes.get(i);
         Box b = boxes.get(j);
         if (a.container == b.container) {
-          if (!a.container && intersect(a.area(0), b.area(0))) {
+          if (!a.container && !a.sameElementAs(b) && intersect(a.area(0), b.area(0))) {
             issues.add("overlap: '" + a.name + "' and '" + b.name + "'");
           }
         } else {
@@ -91,7 +111,8 @@ final class LayoutCheck {
     for (Line line : lines) {
       Area stroke = stroke(line);
       for (Box box : boxes) {
-        if (!box.container && !line.touches(box.name) && intersect(stroke, box.area(GRAZE))) {
+        boolean own = line.touches(box.name) || (box.owner != null && line.touches(box.owner));
+        if (!box.container && !own && intersect(stroke, box.area(GRAZE))) {
           issues.add("line through shape: " + line.name + " crosses '" + box.name + "'");
         }
       }
