@@ -35,6 +35,11 @@ From the requirements, before calling any tool:
 When unsure about a rule, read `review/usecase.md` (§), `review/usecase-conventions.md` (C)
 or `review/usecase-checklist.md` (SYN/BP/SEM/STY).
 
+**Assumptions.** Next to the spec, list every guess the requirements left open (a "may",
+who starts a use case, whether something only happens inside another one). Ask the user
+about the ones that change the spec, all in one question, before building; the others go
+into the report. One question now is cheaper than a review round.
+
 ## 3. Build
 
 `buildUseCaseDiagram(diagramName, systemName, spec, replace)`. It validates the whole spec
@@ -46,8 +51,10 @@ spec and rebuild before the review, or keep one on purpose and say so in the rep
 ## 4. Review
 
 1. `exportDiagramImage` to the scratchpad.
-2. In parallel: `diagram-reviewer` (type `usecase`, the PNG path) and `visual-reviewer`
-   (the PNG path, plus the `checkLayout` output).
+2. `diagram-reviewer` with the type `usecase`, the PNG path and **the requirements text**
+   (it checks that every requirement is covered).
+3. `visual-reviewer` (the PNG path and the `checkLayout` output) only when `checkLayout` is
+   not `OK`: with a clean geometry it finds nits only. Run both in parallel when both run.
 
 ## 5. Fix loop
 
@@ -61,9 +68,10 @@ spec and rebuild before the review, or keep one on purpose and say so in the rep
 - A finding that is a question about the requirements (e.g. "may report damage" = only on
   return, or any time?) goes to the user instead of being guessed.
 
-Stop when both reviewers have nothing above `nit`, or after 3 rounds.
+Stop when the reviewers that ran have nothing above `nit`, or after 3 rounds.
 A finding you think is wrong is still reported to the user, never silently dropped.
 
 ## 6. Report
 
-The PNG, the final spec, and every remaining finding with its id (§, C, SYN/BP/SEM/STY).
+The PNG, the final spec, the assumptions, and every remaining finding with its id (§, C,
+SYN/BP/SEM/STY).

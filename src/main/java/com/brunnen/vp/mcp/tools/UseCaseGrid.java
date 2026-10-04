@@ -19,7 +19,7 @@ import java.util.Set;
  *   <li>primary actors are walked by number of use cases (most first, then by name), a
  *       generalization child right after its parent and an actor whose use case depends on another
  *       actor's use case right after that actor; each gets consecutive rows (use cases by name),
- *       use cases another actor depends on last;
+ *       use cases another actor depends on or is linked to last;
  *   <li>a deeper use case linked directly to a primary actor gets a row of its own with the cells
  *       left of it empty, so the actor's line does not run through another use case;
  *   <li>other deeper use cases take the nearest usable row to their base's row, never a cell on an
@@ -167,6 +167,13 @@ final class UseCaseGrid {
     for (Map.Entry<String, List<String>> e : bases.entrySet()) {
       String depOwner = owner.get(e.getKey());
       if (depOwner != null && !depOwner.equals(actor)) {
+        basesOfOthers.addAll(e.getValue());
+      }
+    }
+    // A use case another primary actor is linked to as well goes last too: that actor stands
+    // below, so its line reaches the use case without crossing this actor's other lines.
+    for (Map.Entry<String, List<String>> e : actorUseCases.entrySet()) {
+      if (!e.getKey().equals(actor)) {
         basesOfOthers.addAll(e.getValue());
       }
     }

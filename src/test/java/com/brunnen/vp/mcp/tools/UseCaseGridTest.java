@@ -152,4 +152,28 @@ public class UseCaseGridTest {
     assertEquals(new Point(1, 1), p.get("Process Payment"));
     assertEquals(new Point(1, 0), p.get("Report Damage"));
   }
+
+  /**
+   * Fitness center: Register Membership is linked to Member and Receptionist. It goes last in
+   * Member's rows, so Receptionist's line from below does not cross Member's line to Reserve Class.
+   */
+  @Test
+  public void putsUseCaseSharedWithAnotherActorLast() {
+    Map<String, List<String>> actors = new LinkedHashMap<>();
+    actors.put(
+        "Member", Arrays.asList("Cancel Reservation", "Register Membership", "Reserve Class"));
+    actors.put("Receptionist", Collections.singletonList("Register Membership"));
+
+    Map<String, Point> p =
+        UseCaseGrid.plan(
+            Arrays.asList("Cancel Reservation", "Register Membership", "Reserve Class"),
+            actors,
+            new HashMap<>(),
+            Collections.emptyList(),
+            new HashSet<>());
+
+    assertEquals(new Point(0, 0), p.get("Cancel Reservation"));
+    assertEquals(new Point(0, 1), p.get("Reserve Class"));
+    assertEquals(new Point(0, 2), p.get("Register Membership"));
+  }
 }
