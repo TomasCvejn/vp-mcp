@@ -25,7 +25,7 @@ The plugin includes an embedded MCP server that:
 - Runs on **port 2026** with SSE stream at `/sse` and messages at `/mcp/messages`
 - Provides **tool capabilities** for external MCP clients
 
-#### Available MCP Tools (59 total)
+#### Available MCP Tools (60 total)
 
 ##### Diagram Management (12 tools)
 - **listDiagrams()**: List all diagrams in the project
@@ -41,7 +41,7 @@ The plugin includes an embedded MCP server that:
 - **exportDiagramImage(diagramName, filePath)**: Export a diagram to a PNG image
 - **getRelationshipDetails(diagramName)**: JSON audit of any diagram: classes, relationships with both ends (multiplicity, navigability), connector points and labels
 
-##### Use Case Diagram (11 tools)
+##### Use Case Diagram (12 tools)
 - **createUseCaseDiagram(diagramName)**: Create new use case diagrams
 - **addActor(actorName, diagramName)**: Add actors to specific diagrams
 - **addUseCase(useCaseName, diagramName)**: Add use cases to diagrams
@@ -52,6 +52,7 @@ The plugin includes an embedded MCP server that:
 - **nameUseCaseRelationship(diagramName, sourceName, targetName, relationshipType, name)**: Name a relationship
 - **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary (reuses an existing one)
 - **layoutUseCaseDiagram(diagramName, systemName)**: House-style layout in one call: use case grid, boundary, actors, lines
+- **buildUseCaseDiagram(diagramName, systemName, spec)**: Create, lay out and check a whole use case diagram from one JSON spec (actors, stereotypes, useCases, links, calls, includes, extends, generalizations); the spec is validated first and nothing is created when it has problems
 - **generateUseCaseReport(diagramName)**: Generate use case analysis report
 
 ##### Class Diagram (18 tools)
