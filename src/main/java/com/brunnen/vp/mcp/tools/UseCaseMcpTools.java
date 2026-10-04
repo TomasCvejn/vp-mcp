@@ -1,6 +1,7 @@
 package com.brunnen.vp.mcp.tools;
 
 import com.brunnen.vp.mcp.tool.Tool;
+import com.brunnen.vp.mcp.util.DiagramLayoutEngine;
 import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
 import com.vp.plugin.diagram.IConnectorUIModel;
@@ -115,29 +116,12 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            // Search both IUseCase and IActor for source
-            IModelElement source = findModelElement(sourceName, IUseCase.class, diagram);
-            if (source == null) {
-              source = findModelElement(sourceName, IActor.class, diagram);
-            }
-            if (source == null) {
-              return "Source element not found: " + sourceName;
-            }
-
-            // Search both IUseCase and IActor for target
-            IModelElement target = findModelElement(targetName, IUseCase.class, diagram);
-            if (target == null) {
-              target = findModelElement(targetName, IActor.class, diagram);
-            }
-            if (target == null) {
-              return "Target element not found: " + targetName;
-            }
-
-            IDiagramElement fromElement = findDiagramElementByName(diagram, sourceName);
-            IDiagramElement toElement = findDiagramElementByName(diagram, targetName);
-            if (fromElement == null || toElement == null) {
-              return "Element not on diagram: " + (fromElement == null ? sourceName : targetName);
-            }
+            IDiagramElement fromElement =
+                findElement(diagram, sourceName, IUseCase.class, IActor.class);
+            IDiagramElement toElement =
+                findElement(diagram, targetName, IUseCase.class, IActor.class);
+            IModelElement source = fromElement.getModelElement();
+            IModelElement target = toElement.getModelElement();
 
             DiagramManager dm = getDiagramManager();
 
@@ -217,14 +201,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IModelElement element = findModelElement(elementName, IUseCase.class, diagram);
-            if (element == null) {
-              element = findModelElement(elementName, IActor.class, diagram);
-            }
-            if (element == null) {
-              return "Element not found on diagram: " + elementName;
-            }
-            element.delete();
+            // Only an element shown on this diagram: never a same-named one elsewhere.
+            findElement(diagram, elementName, IUseCase.class, IActor.class)
+                .getModelElement()
+                .delete();
             return "Removed '" + elementName + "' from the model";
           });
     } catch (Exception e) {
@@ -379,6 +359,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   /** Relationships of the given type between two named elements, matching either direction. */
   private List<IRelationship> findUseCaseRelationships(
       IUseCaseDiagramUIModel diagram, String nameA, String nameB, String relationshipType) {
+    // Both names must identify one actor/use case on the diagram; then matching relationship
+    // ends by name below cannot pick up a same-named element.
+    findElement(diagram, nameA, IUseCase.class, IActor.class);
+    findElement(diagram, nameB, IUseCase.class, IActor.class);
     String type =
         relationshipType == null ? "" : relationshipType.trim().toLowerCase(java.util.Locale.ROOT);
     List<IRelationship> result = new ArrayList<>();
@@ -612,6 +596,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               IShapeUIModel shape = (IShapeUIModel) sysDe;
               shape.setCustomText(systemName);
               shape.setBounds(minX - pad, minY - pad, maxX - minX + 2 * pad, maxY - minY + 2 * pad);
+              // A freshly created boundary keeps its caption at the pre-bounds spot (not shown).
+              shape.resetCaption();
               shape.sendToBack();
             }
 
@@ -741,7 +727,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     int[] ys = stackYs(desired, heights, 40);
     for (int i = 0; i < slots.size(); i++) {
       IDiagramElement de = slots.get(i).de;
-      int w = de.getWidth();
+      // The stick figure is ~40 px wide; a wider box makes arrows stop short of it (C2).
+      int w = DiagramLayoutEngine.ACTOR_WIDTH;
       de.setBounds(leftSide ? edgeX - w : edgeX, ys[i], w, de.getHeight());
       de.resetCaption(); // keep the actor name under the moved figure
     }

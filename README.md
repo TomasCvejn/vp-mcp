@@ -32,7 +32,7 @@ The plugin includes an embedded MCP server that:
 - **getDiagramElements(diagramName)**: List elements of a diagram with details
 - **autoLayoutDiagram(diagramName)**: Apply automatic layout to a diagram
 - **removeDiagramElement(diagramName, elementName)**: Remove an element from a diagram (a system boundary is dissolved, its use cases stay)
-- **renameElement(diagramName, elementName, newName)**: Rename an element (refuses a name already used on the diagram)
+- **renameElement(diagramName, elementName, newName, elementType)**: Rename an element (refuses a name already used on the diagram; optional elementType, e.g. Actor, picks one of several same-named elements)
 - **getElementCounts(diagramName)**: Count elements by type in a diagram
 - **addStereotype(diagramName, elementName, stereotype)**: Apply a stereotype (e.g. System, Time) to any element
 - **checkLayout(diagramName)**: Geometric check for overlapping shapes, lines through shapes and crossing lines (run after exportDiagramImage)
