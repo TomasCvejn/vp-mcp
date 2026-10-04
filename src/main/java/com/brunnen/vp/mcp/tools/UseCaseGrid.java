@@ -18,8 +18,8 @@ import java.util.Set;
  *       its base (include: base -> included, extend: base -> extending);
  *   <li>primary actors are walked by number of use cases (most first, then by name), a
  *       generalization child right after its parent and an actor whose use case depends on another
- *       actor's use case right after that actor; each gets consecutive rows (use cases by name),
- *       use cases another actor depends on or is linked to last;
+ *       actor's use case right after that actor; each gets consecutive rows (use cases in the given
+ *       order), use cases another actor depends on or is linked to last;
  *   <li>a deeper use case linked directly to a primary actor gets a row of its own with the cells
  *       left of it empty, so the actor's line does not run through another use case;
  *   <li>other deeper use cases take the nearest usable row to their base's row, never a cell on an
@@ -35,7 +35,8 @@ final class UseCaseGrid {
   /**
    * Plan the grid cell of every use case.
    *
-   * @param useCases all use cases, in diagram order
+   * @param useCases all use cases, in the order rows follow (the spec's order, or by name: never
+   *     VP's element order, which changes between sessions)
    * @param actorUseCases primary actor -> its directly associated use cases (insertion order kept)
    * @param actorParent generalization child actor -> parent actor
    * @param deps {base, dependent} pairs: include (base, included) and extend (base, extending)
@@ -56,10 +57,16 @@ final class UseCaseGrid {
     for (String uc : useCases) {
       column(uc, bases, column, new HashSet<>());
     }
+    Map<String, Integer> rank = new HashMap<>();
+    for (String uc : useCases) {
+      rank.putIfAbsent(uc, rank.size());
+    }
+    java.util.Comparator<String> given =
+        java.util.Comparator.comparingInt(uc -> rank.getOrDefault(uc, Integer.MAX_VALUE));
     Grid grid = new Grid(secondaryLinked);
     Map<String, String> owner = owners(actorUseCases);
     for (String actor : actorOrder(actorUseCases, actorParent, bases)) {
-      for (String uc : basesOfOthersLast(actor, actorUseCases, bases, owner)) {
+      for (String uc : basesOfOthersLast(actor, actorUseCases, bases, owner, given)) {
         if (!grid.cells.containsKey(uc)) {
           // Every directly linked use case opens a new row; a deeper one leaves the cells left of
           // it empty, so the actor's line does not run through another use case.
@@ -74,7 +81,7 @@ final class UseCaseGrid {
     // (and a use case drawing a line to the right is placed before anything right of it).
     List<String> rest = new ArrayList<>(useCases);
     rest.removeAll(grid.cells.keySet());
-    java.util.Collections.sort(rest);
+    rest.sort(given);
     rest.sort((a, b) -> column.getOrDefault(a, 0) - column.getOrDefault(b, 0));
     for (String uc : rest) {
       int col = column.getOrDefault(uc, 0);
@@ -162,7 +169,8 @@ final class UseCaseGrid {
       String actor,
       Map<String, List<String>> actorUseCases,
       Map<String, List<String>> bases,
-      Map<String, String> owner) {
+      Map<String, String> owner,
+      java.util.Comparator<String> given) {
     Set<String> basesOfOthers = new HashSet<>();
     for (Map.Entry<String, List<String>> e : bases.entrySet()) {
       String depOwner = owner.get(e.getKey());
@@ -178,7 +186,7 @@ final class UseCaseGrid {
       }
     }
     List<String> ordered = new ArrayList<>(actorUseCases.get(actor));
-    java.util.Collections.sort(ordered); // by name, independent of VP's element order
+    ordered.sort(given);
     ordered.sort((a, b) -> Boolean.compare(basesOfOthers.contains(a), basesOfOthers.contains(b)));
     return ordered;
   }

@@ -546,7 +546,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         return "Stopped building '" + diagramName + "' (partly created): " + step;
       }
     }
-    String layout = layoutUseCaseDiagram(diagramName, systemName);
+    // Rows follow the spec's use case order, so the AI can put them in a logical order.
+    String layout = layout(diagramName, systemName, new ArrayList<>(s.useCases));
     return "Built '"
         + diagramName
         + "': "
@@ -565,6 +566,26 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         + checkLayout(diagramName)
         + "\ncheckUseCaseDiagram: "
         + checkUseCaseDiagram(diagramName);
+  }
+
+  @Tool(
+      name = "deleteUseCaseDiagram",
+      description =
+          "Delete a use case diagram with its actors, use cases and relationships. Elements also"
+              + " shown on other diagrams stay there; the project is not saved")
+  public String deleteUseCaseDiagram(String diagramName) {
+    try {
+      return runOnEdt(
+          () -> {
+            if (DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class) == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            String r = deleteDiagram(diagramName);
+            return r.startsWith("Removed") ? "Deleted diagram '" + diagramName + "'" : r;
+          });
+    } catch (Exception e) {
+      return "Error deleting diagram: " + e;
+    }
   }
 
   /**
@@ -691,6 +712,11 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               + " place actors (primary left, secondary right) and re-anchor all lines. Follow"
               + " with exportDiagramImage and checkLayout")
   public String layoutUseCaseDiagram(String diagramName, String systemName) {
+    return layout(diagramName, systemName, null);
+  }
+
+  /** {@link #layoutUseCaseDiagram} with rows in {@code order}, or by name when it is null. */
+  private String layout(String diagramName, String systemName, List<String> order) {
     try {
       String placed =
           runOnEdt(
@@ -701,7 +727,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                 if (diagram == null) {
                   return null;
                 }
-                return placeUseCasesOnGrid(diagram);
+                return placeUseCasesOnGrid(diagram, order);
               });
       if (placed == null) {
         return "Diagram not found: " + diagramName;
@@ -734,6 +760,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   private static final int ROW_STEP = 90; // 30 px between use cases keeps tall diagrams compact
   private static final int CELL_W = 160;
   private static final int CELL_H = 60;
+  // A base use case with its extension points compartment; 80 px still leaves 20 px to the
+  // neighbouring rows.
+  private static final int EXTENDED_W = 200;
+  private static final int EXTENDED_H = 80;
 
   /**
    * Put each «include»/«extend» label beside the middle of its own line, on the side away from the
@@ -772,13 +802,14 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   }
 
   /** Reads the diagram into {@link UseCaseGrid}, moves every use case to its cell. On the EDT. */
-  private String placeUseCasesOnGrid(IUseCaseDiagramUIModel diagram) {
+  private String placeUseCasesOnGrid(IUseCaseDiagramUIModel diagram, List<String> order) {
     List<IDiagramElement> elements = getDiagramElementsList(diagram);
     java.util.Map<String, IDiagramElement> ucShapes = new java.util.LinkedHashMap<>();
     List<IModelElement> actors = new ArrayList<>();
     List<IAssociation> associations = new ArrayList<>();
     List<String[]> deps = new ArrayList<>();
     java.util.Map<String, String> actorParent = new java.util.HashMap<>();
+    java.util.Set<String> extended = new java.util.HashSet<>(); // bases with extension points
     for (IDiagramElement de : elements) {
       IModelElement m = de.getModelElement();
       if (m instanceof IUseCase) {
@@ -791,10 +822,17 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         // Both are stored from = base use case, to = included / extending use case.
         IRelationship r = (IRelationship) m;
         deps.add(new String[] {r.getFrom().getName(), r.getTo().getName()});
+        if (m instanceof IExtend) {
+          extended.add(r.getFrom().getName());
+        }
       } else if (m instanceof IGeneralization) {
         IRelationship r = (IRelationship) m; // from = parent, to = child
         actorParent.put(r.getTo().getName(), r.getFrom().getName());
       }
+    }
+    List<String> rows = new ArrayList<>(order != null ? order : ucShapes.keySet());
+    if (order == null) {
+      java.util.Collections.sort(rows); // VP's element order changes between sessions
     }
     java.util.Map<String, List<String>> actorUseCases = new java.util.LinkedHashMap<>();
     java.util.Set<String> secondaryLinked = new java.util.HashSet<>();
@@ -814,12 +852,16 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       }
     }
     java.util.Map<String, java.awt.Point> cells =
-        UseCaseGrid.plan(
-            new ArrayList<>(ucShapes.keySet()), actorUseCases, actorParent, deps, secondaryLinked);
+        UseCaseGrid.plan(rows, actorUseCases, actorParent, deps, secondaryLinked);
     for (java.util.Map.Entry<String, java.awt.Point> e : cells.entrySet()) {
       IDiagramElement de = ucShapes.get(e.getKey());
       int w = de.getWidth();
       int h = de.getHeight();
+      if (extended.contains(e.getKey())) {
+        // Name, "extension points" and the point: VP's fitted size left the text cramped.
+        w = Math.max(w, EXTENDED_W);
+        h = Math.max(h, EXTENDED_H);
+      }
       // Center in the cell, so bigger ellipses (extension points) stay on the row/column axis.
       de.setBounds(
           GRID_X + e.getValue().x * COLUMN_STEP + (CELL_W - w) / 2,

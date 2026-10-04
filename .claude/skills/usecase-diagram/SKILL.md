@@ -18,7 +18,8 @@ Note `modified`; never save or discard the project unless asked.
 From the requirements, before calling any tool:
 
 - **Use cases** = goals an actor reaches *with the system*, named verb + object
-  ("Rent Bike"). Nothing that happens outside the system (§1.1).
+  ("Rent Bike"). Nothing that happens outside the system (§1.1). List them in reading
+  order ("Reserve Class" before "Cancel Reservation"): each actor's rows follow it.
 - **Primary actors** start a use case → `links: [[actor, useCase]]`.
   **Secondary actors** are called by the system → `calls: [[useCase, actor]]`.
   An actor is never both for the same use case.

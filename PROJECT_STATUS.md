@@ -13,12 +13,12 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
 - **Tool Discovery**: Custom `@Tool` annotation + Java reflection (replaces Spring AI)
 - **Port**: 2026 (configurable)
 
-### MCP Tool Services (61 tools total)
+### MCP Tool Services (62 tools total)
 
 | Category | Tools | Count |
 |----------|-------|-------|
 | Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts, addStereotype, checkLayout, renameElement, setElementBounds, rerouteConnectors, exportDiagramImage, getRelationshipDetails | 12 |
-| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, buildUseCaseDiagram, checkUseCaseDiagram, generateReport | 13 |
+| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, buildUseCaseDiagram, checkUseCaseDiagram, deleteUseCaseDiagram, generateReport | 14 |
 | Class | create, addClass, addAttribute, addOperation, addAssociation, addGeneralization, addAggregation, addComposition, addDependency, addRealization, addInterface, addPackage, setClassColor, generateReport, addStereotypeToClasses, removeRelationship, setAssociationProperties, layoutConnectorLabels | 18 |
 | Project | newProject, saveProject, saveProjectAs, getProjectInfo | 4 |
 | ERD | create, addTable, addColumn, addForeignKey, addTableRelationship, generateDdl, generateReport | 7 |
@@ -259,6 +259,15 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   reviewer had reported; after moving Payment Gateway left and View Statistics out of the box it
   reported exactly C3 and SYN1, and `diagram-reviewer` took both and its counts from it, adding
   only what it judged from the picture (the lines left behind by the moves).
+- **Layout polish** (from reviewer nits in the test runs): `buildUseCaseDiagram` passes the
+  spec's use case order to the planner, so rows follow it ("Reserve Class" before "Cancel
+  Reservation"); `layoutUseCaseDiagram` alone still sorts by name (VP's element order changes
+  between sessions). A base use case with extension points gets at least 200x80 (VP's fitted
+  ~180x62 looked cramped, STY1). The "Visual Paradigm Standard(...)" text at the top left of
+  exports is the edition's licence watermark: neither the empty `setWatermark` nor
+  `setImageMargin(Default)` removes or moves it (tried live), so it stays. `deleteUseCaseDiagram`
+  exposes the delete
+  behind `replace=true` (boundary dissolved, shared elements stay on other diagrams).
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 
