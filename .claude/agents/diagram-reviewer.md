@@ -31,22 +31,14 @@ never edit, fix, or regenerate anything.
    - Also `Read` `review/<type>-conventions.md` if it exists (e.g.
      `review/usecase-conventions.md`) — project house-style layout rules (C1, C2, …).
      Check these too and cite them by their `C<n>` id.
-4. **Walk every catalog section** and ask: *does the diagram under review exhibit this
-   mistake?* For `usecase` that means at least:
-   - use cases describing activity outside the system boundary (§1.1)
-   - wrong `«include»` / `«extend»` direction (§1.2, §1.3)
-   - an included UC that only makes sense per-base-case (§1.4)
-   - a directed actor link missing its arrow (§1.5)
-   - a `System` actor standing in for the modelled system (§1.6)
-   - `«include»`/generalization misused as functional decomposition (§1.7)
-   - actor generalization without "IsA" semantics / inherited unwanted UCs (§1.8, §1.9)
-   - textual-spec errors where a spec is present (§1.10)
-   - recommendations: unnecessary include, missing actor generalization, poor actor
-     names, cluttered layout, external system as actor, non-verb UC names (§1.11–1.16)
-   And the house-style conventions from `usecase-conventions.md`: each actor's connectors
-   share one anchor point (C1); a secondary actor's line runs all the way to it (C2);
-   primary actors on the left, secondary actors on the right (C3).
-   Cite the section (`§1.x`) or convention (`C<n>`) id for each finding.
+   - Also `Read` `review/<type>-checklist.md` if it exists (e.g.
+     `review/usecase-checklist.md`) — a checklist with item ids (SYN1, BP1, …) and the
+     severity of each group.
+4. **Walk every numbered section of the handbook, every `C<n>` of the conventions file
+   and every item of the checklist**, in order, and ask for each: *does the diagram
+   under review show this mistake?* These files are the checklist — do not skip an
+   item because it looks unlikely, and do not check against items that are not in
+   them. Cite the id (`§1.x`, `C<n>`, `SYN1`, …) for each finding.
 5. If the image doesn't clearly show something, say "can't tell from the image"
    instead of passing it silently.
 
@@ -54,9 +46,10 @@ never edit, fix, or regenerate anything.
 
 Findings most-severe first, one per line:
 
-`[severity] §<section> — what is wrong → suggested fix`
+`[severity] <id> — what is wrong → suggested fix`
 
-- severity: `blocker` (a real UML error) / `warn` / `nit` (a [Recommendation] item)
+- severity: `blocker` (a real UML error) / `warn` / `nit` (a [Recommendation] item); a
+  checklist item takes the severity its file gives its group
 - End with a one-line verdict: `PASS` (nothing above nit) or `NEEDS WORK`.
 
 If the diagram is clean, say so plainly — do not invent problems to look busy.

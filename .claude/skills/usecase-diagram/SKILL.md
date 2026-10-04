@@ -23,6 +23,7 @@ From the requirements, before calling any tool:
   **Secondary actors** are called by the system → `calls: [[useCase, actor]]`.
   An actor is never both for the same use case.
 - Another system → stereotype `"system"`; a scheduled trigger → actor `Time` with `"time"`.
+  Put the period into the use case name ("Charge Monthly Subscription", checklist BP3a).
   Never an actor for the modelled system itself (§1.6).
 - `includes: [[base, included]]` only for behaviour shared by **two or more** bases
   (§1.11); never as functional decomposition (§1.7).
@@ -31,7 +32,8 @@ From the requirements, before calling any tool:
 - `generalizations: [[child, parent]]` only for a real "is a" with all inherited use cases
   wanted (§1.8, §1.9, §1.12).
 
-When unsure about a rule, read the section in `review/usecase.md`.
+When unsure about a rule, read `review/usecase.md` (§), `review/usecase-conventions.md` (C)
+or `review/usecase-checklist.md` (SYN/BP/SEM/STY).
 
 ## 3. Build
 
@@ -64,4 +66,4 @@ A finding you think is wrong is still reported to the user, never silently dropp
 
 ## 6. Report
 
-The PNG, the final spec, and every remaining finding with its § / C id.
+The PNG, the final spec, and every remaining finding with its id (§, C, SYN/BP/SEM/STY).

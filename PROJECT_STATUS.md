@@ -224,6 +224,15 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   secondary for one use case, extend without extension point. The skill fixes them in the spec
   before the review. Verified live: a cycle spec created nothing; a spec with six
   planted mistakes was built (`checkLayout` OK) and listed exactly those six warnings.
+- **Generic `diagram-reviewer`**: its hard-coded use case checklist is gone (it had drifted: no
+  C4, and it cited §1.10 and §1.14, which `review/usecase.md` does not contain). The agent walks
+  every numbered section of `review/<type>.md` and every `C<n>` of the conventions file, so a
+  new diagram type needs only its handbook. `review/usecase.md` stays a 1:1 transcription.
+  `review/usecase-checklist.md` (from the user): Syntax/Best practices/Semantics/Style items
+  with ids (SYN1, BP1, SEM1, STY1) and a severity per group; the reviewer reads
+  `review/<type>-checklist.md` too and cites those ids.
+  §1.10 (textual specification, Figures 19–26) and §1.14 (Figures 32–33) are left out of the
+  handbook on purpose (user's decision); its intro now says so.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 
