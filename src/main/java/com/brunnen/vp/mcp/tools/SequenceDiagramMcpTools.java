@@ -171,9 +171,6 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
             }
 
             IInteractionLifeLine lifeline = findLifelineByName(diagram, lifelineName);
-            if (lifeline == null) {
-              return "Lifeline not found: " + lifelineName;
-            }
 
             IActivationUIModel shape = ensureOpenActivation(diagram, lifeline, MSG_TOP_Y);
             if (shape == null) {
@@ -290,11 +287,10 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
             List<String> notFound = new ArrayList<>();
             if (coveredLifelines != null && !coveredLifelines.trim().isEmpty()) {
               for (String lifelineName : coveredLifelines.split(",")) {
-                IInteractionLifeLine lifeline = findLifelineByName(diagram, lifelineName.trim());
-                if (lifeline != null) {
-                  fragment.addCoveredLifeLine(lifeline);
-                } else {
-                  notFound.add(lifelineName.trim());
+                try {
+                  fragment.addCoveredLifeLine(findLifelineByName(diagram, lifelineName.trim()));
+                } catch (IllegalArgumentException e) {
+                  notFound.add(lifelineName.trim()); // reported below, the fragment stays
                 }
               }
             }
@@ -482,12 +478,6 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
     // All participants are real lifelines (boundary/entity/control + actor-as-box).
     IInteractionLifeLine from = findLifelineByName(diagram, fromLifeline);
     IInteractionLifeLine to = findLifelineByName(diagram, toLifeline);
-    if (from == null) {
-      return "From lifeline not found: " + fromLifeline;
-    }
-    if (to == null) {
-      return "To lifeline not found: " + toLifeline;
-    }
 
     int y = messageY(diagram, sequenceNumber);
     boolean self = from.getId().equals(to.getId());
@@ -793,46 +783,37 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
   // --- Helpers ---
 
   /**
-   * Find a lifeline by name in a sequence diagram.
+   * The one lifeline matching {@code name}: by model name or shape caption (the original
+   * lifelineName, stable even after a nickname overrides getName()), else by its base classifier
+   * name (the className argument).
    *
-   * @param diagram the sequence diagram
-   * @param name the lifeline name
-   * @return the lifeline, or null if not found
+   * @throws IllegalArgumentException when none or several lifelines match
    */
-  private static IInteractionLifeLine findLifelineByName(
-      IInteractionDiagramUIModel diagram, String name) {
-    if (diagram == null || name == null) {
-      return null;
+  private IInteractionLifeLine findLifelineByName(IInteractionDiagramUIModel diagram, String name) {
+    if (!elementsNamed(diagram, name, IInteractionLifeLine.class).isEmpty()) {
+      return (IInteractionLifeLine)
+          findElement(diagram, name, IInteractionLifeLine.class).getModelElement();
     }
-    Iterator<?> iter = diagram.diagramElementIterator();
-    while (iter.hasNext()) {
-      Object obj = iter.next();
-      if (!(obj instanceof IDiagramElement)) {
-        continue;
-      }
-      IDiagramElement de = (IDiagramElement) obj;
-      IModelElement model = de.getModelElement();
-      if (!(model instanceof IInteractionLifeLine)) {
-        continue;
-      }
-      IInteractionLifeLine lifeline = (IInteractionLifeLine) model;
-      // 1. Model name. When an alias/nickname is set VP returns the nickname here, so this also
-      //    matches references by alias.
-      if (name.equals(lifeline.getName())) {
-        return lifeline;
-      }
-      // 2. Shape caption — addToDiagram sets it to the original lifelineName, which stays stable
-      //    even after a nickname overrides getName(). This is the reliable identifier.
-      if (de instanceof IShapeUIModel && name.equals(((IShapeUIModel) de).getCustomText())) {
-        return lifeline;
-      }
-      // 3. Base classifier name (the className argument).
-      IModelElement classifier = lifeline.getBaseClassifierAsModel();
-      if (classifier != null && name.equals(classifier.getName())) {
-        return lifeline;
+    List<IInteractionLifeLine> byClassifier = new ArrayList<>();
+    for (IDiagramElement de : getDiagramElementsList(diagram)) {
+      if (de.getModelElement() instanceof IInteractionLifeLine) {
+        IInteractionLifeLine lifeline = (IInteractionLifeLine) de.getModelElement();
+        IModelElement classifier = lifeline.getBaseClassifierAsModel();
+        if (classifier != null && name.equals(classifier.getName())) {
+          byClassifier.add(lifeline);
+        }
       }
     }
-    return null;
+    if (byClassifier.size() != 1) {
+      throw new IllegalArgumentException(
+          (byClassifier.isEmpty() ? "No lifeline" : byClassifier.size() + " lifelines")
+              + " named '"
+              + name
+              + "' (by name or class) on diagram '"
+              + diagram.getName()
+              + "'");
+    }
+    return byClassifier.get(0);
   }
 
   /**

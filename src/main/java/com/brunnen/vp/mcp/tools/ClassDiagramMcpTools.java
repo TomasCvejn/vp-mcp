@@ -81,6 +81,20 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
+            // Resolve what to extend/implement before creating anything, so a wrong or
+            // ambiguous name fails the call instead of leaving a half-built class behind.
+            IDiagramElement parentDe =
+                isSet(extendsClass)
+                    ? findElement(diagram, extendsClass.trim(), IClass.class)
+                    : null;
+            List<IDiagramElement> ifaceDes = new ArrayList<>();
+            if (isSet(implementsInterfaces)) {
+              for (String ifaceName : implementsInterfaces.split(",")) {
+                if (!ifaceName.trim().isEmpty()) {
+                  ifaceDes.add(findElement(diagram, ifaceName.trim(), IClass.class));
+                }
+              }
+            }
 
             IClass cls = getModelElementFactory().createClass();
             cls.setName(className);
@@ -110,7 +124,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
                 && !packageName.trim().isEmpty()
                 && packageColor != null
                 && !packageColor.trim().isEmpty()) {
-              IDiagramElement pkgDe = findDiagramElementByName(diagram, packageName.trim());
+              IDiagramElement pkgDe = findElement(diagram, packageName.trim(), IPackage.class);
               if (pkgDe instanceof IShapeUIModel) {
                 IShapeUIModel shape = (IShapeUIModel) pkgDe;
                 IShapeUIModelFillColor fill = shape.getFillColor();
@@ -119,38 +133,18 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
               }
             }
 
-            // Create generalization (extends) if provided
-            if (extendsClass != null && !extendsClass.trim().isEmpty()) {
-              IClass parent = findModelElement(extendsClass.trim(), IClass.class, diagram);
-              if (parent != null) {
-                IDiagramElement parentDe = findDiagramElementByName(diagram, extendsClass.trim());
-                if (parentDe != null) {
-                  // VP stores a generalization as from = general (parent), to = specific
-                  IGeneralization gen = getModelElementFactory().createGeneralization();
-                  gen.setFrom(parent);
-                  gen.setTo(cls);
-                  connectCentered(diagram, gen, parentDe, classDe);
-                }
-              }
+            if (parentDe != null) {
+              // VP stores a generalization as from = general (parent), to = specific
+              IGeneralization gen = getModelElementFactory().createGeneralization();
+              gen.setFrom(parentDe.getModelElement());
+              gen.setTo(cls);
+              connectCentered(diagram, gen, parentDe, classDe);
             }
-
-            // Create realization (implements) if provided
-            if (implementsInterfaces != null && !implementsInterfaces.trim().isEmpty()) {
-              for (String ifaceName : implementsInterfaces.split(",")) {
-                String trimmed = ifaceName.trim();
-                if (!trimmed.isEmpty()) {
-                  IClass iface = findModelElement(trimmed, IClass.class, diagram);
-                  if (iface != null) {
-                    IDiagramElement ifaceDe = findDiagramElementByName(diagram, trimmed);
-                    if (ifaceDe != null) {
-                      IRealization real = getModelElementFactory().createRealization();
-                      real.setFrom(cls);
-                      real.setTo(iface);
-                      connectCentered(diagram, real, classDe, ifaceDe);
-                    }
-                  }
-                }
-              }
+            for (IDiagramElement ifaceDe : ifaceDes) {
+              IRealization real = getModelElementFactory().createRealization();
+              real.setFrom(cls);
+              real.setTo(ifaceDe.getModelElement());
+              connectCentered(diagram, real, classDe, ifaceDe);
             }
 
             StringBuilder result = new StringBuilder();
@@ -198,15 +192,9 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
               if (diagram == null) {
                 return "Diagram not found: " + diagramName;
               }
-              cls = findClassOnDiagram(diagram, className);
-              if (cls == null) {
-                return "Class not on diagram: " + className;
-              }
+              cls = findModelElement(className, IClass.class, diagram);
             } else {
               cls = findModelElement(className, IClass.class, null);
-            }
-            if (cls == null) {
-              return "Class not found: " + className;
             }
 
             // Duplicate attribute guard
@@ -247,9 +235,6 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IClass cls = findModelElement(className, IClass.class, null);
-            if (cls == null) {
-              return "Class not found: " + className;
-            }
 
             // Duplicate operation guard
             Iterator<?> existingOps = cls.operationIterator();
@@ -314,16 +299,10 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IClass source = findModelElement(fromClass, IClass.class, diagram);
-            IClass target = findModelElement(toClass, IClass.class, diagram);
-            if (source == null || target == null) {
-              return "Class not found: " + (source == null ? fromClass : toClass);
-            }
-            IDiagramElement fromElement = findDiagramElementByName(diagram, fromClass);
-            IDiagramElement toElement = findDiagramElementByName(diagram, toClass);
-            if (fromElement == null || toElement == null) {
-              return "Class not on diagram: " + (fromElement == null ? fromClass : toClass);
-            }
+            IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
+            IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
+            IClass source = (IClass) fromElement.getModelElement();
+            IClass target = (IClass) toElement.getModelElement();
 
             IAssociation assoc = getModelElementFactory().createAssociation();
             assoc.setFrom(source);
@@ -363,16 +342,10 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IClass source = findModelElement(fromClass, IClass.class, diagram);
-            IClass target = findModelElement(toClass, IClass.class, diagram);
-            if (source == null || target == null) {
-              return "Class not found: " + (source == null ? fromClass : toClass);
-            }
-            IDiagramElement fromElement = findDiagramElementByName(diagram, fromClass);
-            IDiagramElement toElement = findDiagramElementByName(diagram, toClass);
-            if (fromElement == null || toElement == null) {
-              return "Class not on diagram: " + (fromElement == null ? fromClass : toClass);
-            }
+            IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
+            IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
+            IClass source = (IClass) fromElement.getModelElement();
+            IClass target = (IClass) toElement.getModelElement();
 
             // VP stores a generalization as from = general (parent), to = specific (child)
             IGeneralization gen = getModelElementFactory().createGeneralization();
@@ -405,16 +378,10 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IClass source = findModelElement(fromClass, IClass.class, diagram);
-            IClass target = findModelElement(toClass, IClass.class, diagram);
-            if (source == null || target == null) {
-              return "Class not found: " + (source == null ? fromClass : toClass);
-            }
-            IDiagramElement fromElement = findDiagramElementByName(diagram, fromClass);
-            IDiagramElement toElement = findDiagramElementByName(diagram, toClass);
-            if (fromElement == null || toElement == null) {
-              return "Class not on diagram: " + (fromElement == null ? fromClass : toClass);
-            }
+            IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
+            IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
+            IClass source = (IClass) fromElement.getModelElement();
+            IClass target = (IClass) toElement.getModelElement();
 
             IAssociation assoc = getModelElementFactory().createAssociation();
             assoc.setFrom(source);
@@ -454,16 +421,10 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IClass source = findModelElement(fromClass, IClass.class, diagram);
-            IClass target = findModelElement(toClass, IClass.class, diagram);
-            if (source == null || target == null) {
-              return "Class not found: " + (source == null ? fromClass : toClass);
-            }
-            IDiagramElement fromElement = findDiagramElementByName(diagram, fromClass);
-            IDiagramElement toElement = findDiagramElementByName(diagram, toClass);
-            if (fromElement == null || toElement == null) {
-              return "Class not on diagram: " + (fromElement == null ? fromClass : toClass);
-            }
+            IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
+            IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
+            IClass source = (IClass) fromElement.getModelElement();
+            IClass target = (IClass) toElement.getModelElement();
 
             IAssociation assoc = getModelElementFactory().createAssociation();
             assoc.setFrom(source);
@@ -498,16 +459,10 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IClass source = findModelElement(fromClass, IClass.class, diagram);
-            IClass target = findModelElement(toClass, IClass.class, diagram);
-            if (source == null || target == null) {
-              return "Class not found: " + (source == null ? fromClass : toClass);
-            }
-            IDiagramElement fromElement = findDiagramElementByName(diagram, fromClass);
-            IDiagramElement toElement = findDiagramElementByName(diagram, toClass);
-            if (fromElement == null || toElement == null) {
-              return "Class not on diagram: " + (fromElement == null ? fromClass : toClass);
-            }
+            IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
+            IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
+            IClass source = (IClass) fromElement.getModelElement();
+            IClass target = (IClass) toElement.getModelElement();
 
             IDependency dep = getModelElementFactory().createDependency();
             dep.setFrom(source);
@@ -534,16 +489,10 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IClass source = findModelElement(fromClass, IClass.class, diagram);
-            IClass target = findModelElement(toClass, IClass.class, diagram);
-            if (source == null || target == null) {
-              return "Class not found: " + (source == null ? fromClass : toClass);
-            }
-            IDiagramElement fromElement = findDiagramElementByName(diagram, fromClass);
-            IDiagramElement toElement = findDiagramElementByName(diagram, toClass);
-            if (fromElement == null || toElement == null) {
-              return "Class not on diagram: " + (fromElement == null ? fromClass : toClass);
-            }
+            IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
+            IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
+            IClass source = (IClass) fromElement.getModelElement();
+            IClass target = (IClass) toElement.getModelElement();
 
             IRealization real = getModelElementFactory().createRealization();
             real.setFrom(source);
@@ -598,7 +547,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
 
             // Set fill color if provided
             if (backgroundColor != null && !backgroundColor.trim().isEmpty()) {
-              IDiagramElement de = findDiagramElementByName(diagram, packageName);
+              IDiagramElement de = findElement(diagram, packageName, IPackage.class);
               if (de instanceof IShapeUIModel) {
                 IShapeUIModel shape = (IShapeUIModel) de;
                 IShapeUIModelFillColor fill = shape.getFillColor();
@@ -635,10 +584,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
 
-            IDiagramElement de = findDiagramElementByName(diagram, className);
-            if (de == null) {
-              return "Class not on diagram: " + className;
-            }
+            IDiagramElement de = findElement(diagram, className, IClass.class);
             if (!(de instanceof IShapeUIModel)) {
               return "Element is not a shape: " + className;
             }
@@ -1203,20 +1149,16 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     return value != null && !value.trim().isEmpty();
   }
 
-  private IClass findClassOnDiagram(IDiagramUIModel diagram, String className) {
-    IDiagramElement de = findDiagramElementByName(diagram, className);
-    if (de != null && de.getModelElement() instanceof IClass) {
-      return (IClass) de.getModelElement();
-    }
-    return null;
-  }
-
   /**
    * Relationships drawn on the diagram between two named classes. Generalization, dependency and
    * realization match the given direction; association kinds match either direction.
    */
   private List<IRelationship> findRelationships(
       IDiagramUIModel diagram, String fromClass, String toClass, String relationshipType) {
+    // Both names must identify one class on the diagram; then matching relationship ends by
+    // name below cannot pick up a same-named element.
+    findElement(diagram, fromClass, IClass.class);
+    findElement(diagram, toClass, IClass.class);
     String type = relationshipType == null ? "" : relationshipType.trim().toLowerCase(Locale.ROOT);
     List<IRelationship> result = new ArrayList<>();
     for (IDiagramElement de : getDiagramElementsList(diagram)) {
@@ -1287,12 +1229,9 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
 
   private IPackage findOrCreatePackage(IClassDiagramUIModel diagram, String packageName) {
     // Check if package already exists on diagram
-    IDiagramElement existing = findDiagramElementByName(diagram, packageName);
-    if (existing != null) {
-      IModelElement model = existing.getModelElement();
-      if (model instanceof IPackage) {
-        return (IPackage) model;
-      }
+    List<IDiagramElement> existing = elementsNamed(diagram, packageName, IPackage.class);
+    if (!existing.isEmpty()) {
+      return (IPackage) existing.get(0).getModelElement();
     }
 
     // Create new package

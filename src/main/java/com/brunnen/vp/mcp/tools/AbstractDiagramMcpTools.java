@@ -190,141 +190,131 @@ public abstract class AbstractDiagramMcpTools {
     while (diagramIter.hasNext()) {
       Object diagramObj = diagramIter.next();
       if (diagramObj instanceof IDiagramUIModel) {
-        IDiagramElement de = findDiagramElementByModel((IDiagramUIModel) diagramObj, element);
-        if (de instanceof IShapeUIModel) {
-          ((IShapeUIModel) de).fitSize();
-        }
-      }
-    }
-  }
-
-  /**
-   * Find a diagram element by its model element name on a specific diagram. Diagram-scoped only —
-   * does not check the global registry to avoid cross-diagram mismatches.
-   *
-   * @param diagram the diagram to search
-   * @param name the model element name
-   * @return the diagram element, or null if not found
-   */
-  protected IDiagramElement findDiagramElementByName(IDiagramUIModel diagram, String name) {
-    if (diagram == null || name == null) {
-      return null;
-    }
-    Iterator<?> iter = diagram.diagramElementIterator();
-    while (iter.hasNext()) {
-      Object obj = iter.next();
-      if (obj instanceof IDiagramElement) {
-        IDiagramElement de = (IDiagramElement) obj;
-        IModelElement model = de.getModelElement();
-        if (model != null && name.equals(model.getName())) {
-          return de;
-        }
-        if (de instanceof IShapeUIModel) {
-          String caption = ((IShapeUIModel) de).getCustomText();
-          if (name.equals(caption)) {
-            return de;
+        for (IDiagramElement de : getDiagramElementsList((IDiagramUIModel) diagramObj)) {
+          IModelElement m = de.getModelElement();
+          if (de instanceof IShapeUIModel && m != null && m.getId().equals(element.getId())) {
+            ((IShapeUIModel) de).fitSize();
           }
         }
       }
     }
-    return null;
   }
 
   /**
-   * Find a model element by name, scoped to a specific diagram first. Falls back to project-wide
-   * search. The diagram-scoped lookup avoids cross-diagram mismatches when the same element name
-   * exists in multiple diagrams.
+   * The one element on {@code diagram} named {@code name} (model name or a shape's custom caption)
+   * whose model is one of {@code types} (any type when none are given). Tools look elements up by
+   * name, so a missing or ambiguous name is an error the tool reports, never a silent pick of the
+   * first match or of an element on another diagram.
    *
-   * @param name the element name
-   * @param type the expected model element type
-   * @param diagram the diagram to search first (may be null for project-wide only)
-   * @param <T> the model element type
-   * @return the model element, or null if not found
+   * @throws IllegalArgumentException when no element or several different elements match
+   */
+  protected IDiagramElement findElement(IDiagramUIModel diagram, String name, Class<?>... types) {
+    List<IDiagramElement> found = elementsNamed(diagram, name, types);
+    if (found.isEmpty()) {
+      throw new IllegalArgumentException(
+          "No "
+              + typeLabel(types)
+              + " named '"
+              + name
+              + "' on diagram '"
+              + diagram.getName()
+              + "'");
+    }
+    if (found.size() > 1) {
+      List<String> kinds = new ArrayList<>();
+      for (IDiagramElement de : found) {
+        kinds.add(getSemanticTypeName(de.getModelElement()));
+      }
+      throw new IllegalArgumentException(
+          found.size()
+              + " elements named '"
+              + name
+              + "' on diagram '"
+              + diagram.getName()
+              + "' ("
+              + String.join(", ", kinds)
+              + "); rename one with renameElement(..., elementType)");
+    }
+    return found.get(0);
+  }
+
+  /** Every distinct element on the diagram matching name and types (one view per model). */
+  protected List<IDiagramElement> elementsNamed(
+      IDiagramUIModel diagram, String name, Class<?>... types) {
+    List<IDiagramElement> result = new ArrayList<>();
+    if (diagram == null || name == null) {
+      return result;
+    }
+    java.util.Set<String> seenModels = new java.util.HashSet<>();
+    for (IDiagramElement de : getDiagramElementsList(diagram)) {
+      IModelElement model = de.getModelElement();
+      if (model == null || !isAnyOf(model, types)) {
+        continue;
+      }
+      boolean named =
+          name.equals(model.getName())
+              || (de instanceof IShapeUIModel && name.equals(((IShapeUIModel) de).getCustomText()));
+      if (named && seenModels.add(model.getId())) {
+        result.add(de);
+      }
+    }
+    return result;
+  }
+
+  /**
+   * The model element named {@code name} of {@code type}: the one shown on {@code diagram}, or,
+   * when no diagram is given, the one in the whole project.
+   *
+   * @throws IllegalArgumentException when no element or several different elements match
    */
   protected <T extends IModelElement> T findModelElement(
       String name, Class<T> type, IDiagramUIModel diagram) {
-    if (name == null) {
-      return null;
-    }
-    // 1. Diagram-scoped search (most reliable)
     if (diagram != null) {
-      T result = findModelElementInDiagram(diagram, name, type);
-      if (result != null) {
-        return result;
-      }
+      return type.cast(findElement(diagram, name, type).getModelElement());
     }
-    // 2. When no diagram specified, search ALL diagrams
-    if (diagram == null) {
-      IProject project = ApplicationManager.instance().getProjectManager().getProject();
-      if (project != null) {
-        Iterator<?> diagramIter = project.diagramIterator();
-        while (diagramIter.hasNext()) {
-          Object diagramObj = diagramIter.next();
-          if (diagramObj instanceof IDiagramUIModel) {
-            T result = findModelElementInDiagram((IDiagramUIModel) diagramObj, name, type);
-            if (result != null) {
-              return result;
-            }
-          }
-        }
-      }
-    }
-    // 3. Fallback to project-wide search (getName only)
-    return DiagramUtils.findModelElementByName(name, type);
-  }
-
-  private <T extends IModelElement> T findModelElementInDiagram(
-      IDiagramUIModel diagram, String name, Class<T> type) {
-    Iterator<?> iter = diagram.diagramElementIterator();
+    List<T> found = new ArrayList<>();
+    IProject project = requireProject();
+    Iterator<?> iter = project.allLevelModelElementIterator();
     while (iter.hasNext()) {
       Object obj = iter.next();
-      if (obj instanceof IDiagramElement) {
-        IDiagramElement de = (IDiagramElement) obj;
-        IModelElement model = de.getModelElement();
-        if (model != null && type.isInstance(model)) {
-          if (name.equals(model.getName())) {
-            return type.cast(model);
-          }
-          if (de instanceof IShapeUIModel) {
-            String caption = ((IShapeUIModel) de).getCustomText();
-            if (name.equals(caption)) {
-              return type.cast(model);
-            }
-          }
-        }
+      if (type.isInstance(obj) && name != null && name.equals(type.cast(obj).getName())) {
+        found.add(type.cast(obj));
       }
     }
-    return null;
+    if (found.size() != 1) {
+      throw new IllegalArgumentException(
+          (found.isEmpty() ? "No " : found.size() + " ")
+              + type.getSimpleName().substring(1)
+              + (found.isEmpty() ? "" : "s")
+              + " named '"
+              + name
+              + "' in the project"
+              + (found.isEmpty() ? "" : "; pass diagramName to pick the one on that diagram"));
+    }
+    return found.get(0);
   }
 
-  /**
-   * Find a diagram element by model element reference on a specific diagram.
-   *
-   * @param diagram the diagram to search
-   * @param modelElement the model element
-   * @return the diagram element, or null if not found
-   */
-  protected IDiagramElement findDiagramElementByModel(
-      IDiagramUIModel diagram, IModelElement modelElement) {
-    if (diagram == null || modelElement == null) {
-      return null;
+  private static boolean isAnyOf(IModelElement model, Class<?>... types) {
+    if (types.length == 0) {
+      return true;
     }
-    String targetName = modelElement.getName();
-    Iterator<?> iter = diagram.diagramElementIterator();
-    while (iter.hasNext()) {
-      Object obj = iter.next();
-      if (obj instanceof IDiagramElement) {
-        IDiagramElement de = (IDiagramElement) obj;
-        IModelElement m = de.getModelElement();
-        if (modelElement.equals(m)) {
-          return de;
-        }
-        if (m != null && targetName.equals(m.getName())) {
-          return de;
-        }
+    for (Class<?> type : types) {
+      if (type.isInstance(model)) {
+        return true;
       }
     }
-    return null;
+    return false;
+  }
+
+  private static String typeLabel(Class<?>... types) {
+    if (types.length == 0) {
+      return "element";
+    }
+    List<String> names = new ArrayList<>();
+    for (Class<?> type : types) {
+      names.add(type.getSimpleName().substring(1)); // IActor -> Actor
+    }
+    return String.join(" or ", names);
   }
 
   /**
@@ -700,8 +690,10 @@ public abstract class AbstractDiagramMcpTools {
       description =
           "Rename an element shown on a diagram (actor, use case, class, table, system"
               + " boundary, ...). Refuses a name already used on that diagram, because tools find"
-              + " elements by name")
-  public String renameElement(String diagramName, String elementName, String newName) {
+              + " elements by name. elementType (optional, e.g. Actor or UseCase) picks one of"
+              + " several elements sharing the name")
+  public String renameElement(
+      String diagramName, String elementName, String newName, String elementType) {
     try {
       return runOnEdt(
           () -> {
@@ -713,11 +705,31 @@ public abstract class AbstractDiagramMcpTools {
               return "newName is required";
             }
             String name = newName.trim();
-            IDiagramElement de = findDiagramElementByName(diagram, elementName);
-            if (de == null || de.getModelElement() == null) {
-              return "Element not found on diagram: " + elementName;
+            IDiagramElement de;
+            if (elementType == null || elementType.trim().isEmpty()) {
+              de = findElement(diagram, elementName);
+            } else {
+              List<IDiagramElement> ofType = new ArrayList<>();
+              for (IDiagramElement candidate : elementsNamed(diagram, elementName)) {
+                if (elementType
+                    .trim()
+                    .equalsIgnoreCase(getSemanticTypeName(candidate.getModelElement()))) {
+                  ofType.add(candidate);
+                }
+              }
+              if (ofType.size() != 1) {
+                return ofType.size()
+                    + " "
+                    + elementType.trim()
+                    + " element(s) named '"
+                    + elementName
+                    + "' on diagram '"
+                    + diagramName
+                    + "'";
+              }
+              de = ofType.get(0);
             }
-            if (findDiagramElementByName(diagram, name) != null) {
+            if (!elementsNamed(diagram, name).isEmpty()) {
               return "'" + name + "' is already used on diagram '" + diagramName + "'";
             }
             de.getModelElement().setName(name);
@@ -746,10 +758,7 @@ public abstract class AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IDiagramElement element = findDiagramElementByName(diagram, elementName);
-            if (element == null) {
-              return "Element not found on diagram: " + elementName;
-            }
+            IDiagramElement element = findElement(diagram, elementName);
             if (element.getModelElement() instanceof com.vp.plugin.model.ISystem) {
               return removeSystemBoundary(diagram, element, elementName);
             }
@@ -829,11 +838,7 @@ public abstract class AbstractDiagramMcpTools {
             if (stereotype == null || stereotype.trim().isEmpty()) {
               return "Stereotype is required";
             }
-            IDiagramElement de = findDiagramElementByName(diagram, elementName);
-            if (de == null || de.getModelElement() == null) {
-              return "Element not found on diagram: " + elementName;
-            }
-            IModelElement model = de.getModelElement();
+            IModelElement model = findElement(diagram, elementName).getModelElement();
             String stereo = stereotype.trim();
             if (model.hasStereotype(stereo)) {
               return "'" + elementName + "' already has stereotype '" + stereo + "'";
@@ -860,10 +865,7 @@ public abstract class AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IDiagramElement de = findDiagramElementByName(diagram, elementName);
-            if (de == null) {
-              return "Element not on diagram: " + elementName;
-            }
+            IDiagramElement de = findElement(diagram, elementName);
             if (width <= 0 || height <= 0) {
               if (de instanceof IShapeUIModel) {
                 ((IShapeUIModel) de).fitSize();

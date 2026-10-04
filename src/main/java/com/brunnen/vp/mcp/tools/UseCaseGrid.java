@@ -16,9 +16,10 @@ import java.util.Set;
  * <ul>
  *   <li>column = 0 for a use case nobody includes and that extends nothing, otherwise one more than
  *       its base (include: base -> included, extend: base -> extending);
- *   <li>primary actors are walked in order, a generalization child right after its parent and an
- *       actor whose use case depends on another actor's use case right after that actor; each gets
- *       consecutive rows, use cases another actor depends on last;
+ *   <li>primary actors are walked by number of use cases (most first, then by name), a
+ *       generalization child right after its parent and an actor whose use case depends on another
+ *       actor's use case right after that actor; each gets consecutive rows (use cases by name),
+ *       use cases another actor depends on last;
  *   <li>a deeper use case linked directly to a primary actor gets a row of its own with the cells
  *       left of it empty, so the actor's line does not run through another use case;
  *   <li>other deeper use cases take the nearest usable row to their base's row, never a cell on an
@@ -69,6 +70,7 @@ final class UseCaseGrid {
     // (and a use case drawing a line to the right is placed before anything right of it).
     List<String> rest = new ArrayList<>(useCases);
     rest.removeAll(grid.cells.keySet());
+    java.util.Collections.sort(rest);
     rest.sort((a, b) -> column.getOrDefault(a, 0) - column.getOrDefault(b, 0));
     for (String uc : rest) {
       int col = column.getOrDefault(uc, 0);
@@ -153,6 +155,7 @@ final class UseCaseGrid {
       }
     }
     List<String> ordered = new ArrayList<>(actorUseCases.get(actor));
+    java.util.Collections.sort(ordered); // by name, independent of VP's element order
     ordered.sort((a, b) -> Boolean.compare(basesOfOthers.contains(a), basesOfOthers.contains(b)));
     return ordered;
   }
@@ -183,10 +186,16 @@ final class UseCaseGrid {
       Map<String, List<String>> actorUseCases,
       Map<String, String> actorParent,
       Map<String, List<String>> bases) {
+    // Most use cases first, then by name: VP's element order changes between sessions, and the
+    // main actor at the top keeps its long fan clear of the others.
+    List<String> names = new ArrayList<>(actorUseCases.keySet());
+    names.sort(
+        java.util.Comparator.<String>comparingInt(a -> -actorUseCases.get(a).size())
+            .thenComparing(java.util.Comparator.naturalOrder()));
     List<List<String>> groups = new ArrayList<>();
     Set<String> seen = new HashSet<>();
     for (boolean cycles : new boolean[] {false, true}) {
-      for (String actor : actorUseCases.keySet()) {
+      for (String actor : names) {
         if (!seen.contains(actor)
             && (cycles || !actorUseCases.containsKey(actorParent.get(actor)))) {
           List<String> group = new ArrayList<>();

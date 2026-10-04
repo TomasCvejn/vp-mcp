@@ -72,9 +72,6 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IDBTable table = findModelElement(tableName, IDBTable.class, null);
-            if (table == null) {
-              return "Table not found: " + tableName;
-            }
 
             // Duplicate column guard
             Iterator<?> existingCols = table.dBColumnIterator();
@@ -119,16 +116,10 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IDBTable source = findModelElement(fromTable, IDBTable.class, diagram);
-            IDBTable target = findModelElement(toTable, IDBTable.class, diagram);
-            if (source == null || target == null) {
-              return "Table not found: " + (source == null ? fromTable : toTable);
-            }
-            IDiagramElement fromElement = findDiagramElementByName(diagram, fromTable);
-            IDiagramElement toElement = findDiagramElementByName(diagram, toTable);
-            if (fromElement == null || toElement == null) {
-              return "Table not on diagram: " + (fromElement == null ? fromTable : toTable);
-            }
+            IDiagramElement fromElement = findElement(diagram, fromTable, IDBTable.class);
+            IDiagramElement toElement = findElement(diagram, toTable, IDBTable.class);
+            IDBTable source = (IDBTable) fromElement.getModelElement();
+            IDBTable target = (IDBTable) toElement.getModelElement();
 
             IDBForeignKey fk = getModelElementFactory().createDBForeignKey();
             fk.setFrom(source);
@@ -176,16 +167,10 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
-            IDBTable source = findModelElement(fromTable, IDBTable.class, diagram);
-            IDBTable target = findModelElement(toTable, IDBTable.class, diagram);
-            if (source == null || target == null) {
-              return "Table not found: " + (source == null ? fromTable : toTable);
-            }
-            IDiagramElement fromElement = findDiagramElementByName(diagram, fromTable);
-            IDiagramElement toElement = findDiagramElementByName(diagram, toTable);
-            if (fromElement == null || toElement == null) {
-              return "Table not on diagram: " + (fromElement == null ? fromTable : toTable);
-            }
+            IDiagramElement fromElement = findElement(diagram, fromTable, IDBTable.class);
+            IDiagramElement toElement = findElement(diagram, toTable, IDBTable.class);
+            IDBTable source = (IDBTable) fromElement.getModelElement();
+            IDBTable target = (IDBTable) toElement.getModelElement();
 
             IDBForeignKey fk = getModelElementFactory().createDBForeignKey();
             fk.setFrom(source);

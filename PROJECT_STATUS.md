@@ -106,6 +106,27 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `exportDiagramImage`, `getRelationshipDetails` and the project tools moved out of
   `ClassDiagramMcpTools` (names unchanged; the server registers each tool name once). Only
   class-specific tools remain in `ClassDiagramMcpTools`.
+- **Wolt diagram (wolt.vpp) fixes**: actors are created 40x60 (their stick figure;
+  `DiagramLayoutEngine.ACTOR_WIDTH`) and `addSystemBoundary` normalizes actor width, so arrows to
+  secondary actors no longer stop short (C2); a freshly created boundary gets `resetCaption()`
+  (its name was not shown); `UseCaseGrid` orders actors by number of use cases (most first, then
+  by name) and use cases by name, so the layout no longer depends on VP's element order, which
+  changes between sessions (the same diagram passed `checkLayout` before a VP restart and failed
+  after it). Generate-and-test over actor orders was considered and dropped as too big.
+- **One name lookup**: `findElement(diagram, name, types...)` in `AbstractDiagramMcpTools` returns
+  the single element (shape and model together) named so on the diagram and throws when none or
+  several different elements match; tools report the message (e.g. "2 elements named 'Payment' on
+  diagram 'A' (Actor, UseCase); rename one with renameElement(..., elementType)"). It replaces
+  `findDiagramElementByName` (untyped, first match: model and shape could belong to different
+  same-named elements), `findDiagramElementByModel` (name fallback) and the cross-diagram fallback
+  of `findModelElement` (with a diagram given it now never leaves it; without one it requires a
+  unique name in the project). Fixed by it: `removeUseCaseElement` could delete a same-named
+  element from another diagram; `addClass` silently skipped an unknown/ambiguous extends/implements
+  (now resolved before anything is created); relationship and lifeline lookups validate their
+  names. `renameElement` takes an optional `elementType` to resolve a clash. Verified live in a
+  scratch project (ambiguous link refused, other-diagram delete refused, rename by type, extends of
+  a missing class refused with nothing created). Note: VP's `createUseCase()` itself adds a
+  hidden «UseCase» stereotype.
 - **Ponytail audit cuts**: removed the undocumented Docker proxy mode (`StandaloneServer`,
   `ProxyToolDefinition`, `/api/tools` + `/api/execute`, Dockerfile, compose, stub generator) and
   `test_connect.py`; MCP clients connect straight to `http://localhost:2026/sse`. The server now

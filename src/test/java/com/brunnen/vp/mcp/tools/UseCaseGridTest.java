@@ -36,8 +36,8 @@ public class UseCaseGridTest {
             "Place Order",
             "Search for Vehicle");
     Map<String, List<String>> actors = new LinkedHashMap<>();
-    // Unregistered User comes first here, but its Search for Vehicle depends on Registered User's
-    // Place Order, so it must end up right after the Registered/Premium group.
+    // Unregistered User comes first in this input; its Search for Vehicle depends on Registered
+    // User's Place Order, so it must still end up right after the Registered/Premium group.
     actors.put("Unregistered User", Collections.singletonList("Search for Vehicle"));
     actors.put("Time", Collections.singletonList("Renew Subscription"));
     actors.put("System Manager", Arrays.asList("Manage Assets", "View Statistics"));
@@ -63,22 +63,37 @@ public class UseCaseGridTest {
 
     Map<String, Point> p = UseCaseGrid.plan(useCases, actors, parent, deps, secondaryLinked);
 
-    assertEquals(new Point(0, 0), p.get("Renew Subscription"));
-    assertEquals(new Point(0, 1), p.get("Manage Assets"));
-    assertEquals(new Point(0, 2), p.get("View Statistics"));
-    assertEquals(new Point(0, 3), p.get("Subscribe to Premium"));
-    assertEquals(new Point(0, 6), p.get("Confirm Order"));
-    // Place Order is a base of Unregistered User's use case: last in Registered User's rows.
-    assertEquals(new Point(0, 7), p.get("Place Order"));
-    assertEquals(new Point(0, 8), p.get("Cancel Subscription")); // Premium right after parent
-    assertEquals(new Point(1, 9), p.get("Search for Vehicle")); // own row, column 0 empty
-    // Dependents (in diagram order) on the nearest usable row to their base.
-    assertEquals(new Point(1, 6), p.get("Compute Route"));
-    assertEquals(new Point(1, 7), p.get("Process Payment"));
-    assertEquals(new Point(1, 8), p.get("Specify Equipment Requirements"));
-    // Rows 6 and 7 carry lines to secondary actors on the right (Compute Route, Process Payment),
+    // Registered User has the most use cases, so it comes first (by name, Place Order last as
+    // Unregistered User's use case depends on it), then Premium User (its child) and
+    // Unregistered User (dependent), then System Manager and Time.
+    assertEquals(new Point(0, 0), p.get("Cancel Ride"));
+    assertEquals(new Point(0, 1), p.get("Confirm Order"));
+    assertEquals(new Point(0, 3), p.get("View Order History"));
+    assertEquals(new Point(0, 4), p.get("Place Order"));
+    assertEquals(new Point(0, 5), p.get("Cancel Subscription"));
+    assertEquals(new Point(1, 6), p.get("Search for Vehicle")); // own row, column 0 empty
+    assertEquals(new Point(0, 7), p.get("Manage Assets"));
+    assertEquals(new Point(0, 9), p.get("Renew Subscription"));
+    // Dependents (by name) on the nearest usable row to their base.
+    assertEquals(new Point(1, 1), p.get("Compute Route"));
+    assertEquals(new Point(1, 2), p.get("Process Payment"));
+    assertEquals(new Point(1, 4), p.get("Specify Equipment Requirements"));
+    // Rows 1 and 2 carry lines to secondary actors on the right (Compute Route, Process Payment),
     // so Report Incident goes one row up instead of sitting on one of them.
-    assertEquals(new Point(2, 5), p.get("Report Incident"));
+    assertEquals(new Point(2, 0), p.get("Report Incident"));
+
+    // VP's element order differs between sessions: the plan must not depend on it.
+    Map<String, List<String>> reversed = new LinkedHashMap<>();
+    List<String> names = new java.util.ArrayList<>(actors.keySet());
+    java.util.Collections.reverse(names);
+    for (String n : names) {
+      List<String> ucs = new java.util.ArrayList<>(actors.get(n));
+      java.util.Collections.reverse(ucs);
+      reversed.put(n, ucs);
+    }
+    List<String> reversedUseCases = new java.util.ArrayList<>(useCases);
+    java.util.Collections.reverse(reversedUseCases);
+    assertEquals(p, UseCaseGrid.plan(reversedUseCases, reversed, parent, deps, secondaryLinked));
     assertEquals(useCases.size(), p.size());
   }
 

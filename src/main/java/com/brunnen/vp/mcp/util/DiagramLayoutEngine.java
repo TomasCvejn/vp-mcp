@@ -30,6 +30,8 @@ public final class DiagramLayoutEngine {
   private static final int ZONE_SPACING_Y = 80;
   private static final int ELEMENT_WIDTH = 160;
   private static final int ELEMENT_HEIGHT = 60;
+  /** Width of an actor shape: its stick figure, so arrows end at the figure, not short of it. */
+  public static final int ACTOR_WIDTH = 40;
 
   private DiagramLayoutEngine() {}
 
@@ -122,7 +124,8 @@ public final class DiagramLayoutEngine {
         break;
     }
 
-    return new int[] {baseX, baseY, ELEMENT_WIDTH, ELEMENT_HEIGHT};
+    int width = element instanceof IActor ? ACTOR_WIDTH : ELEMENT_WIDTH;
+    return new int[] {baseX, baseY, width, ELEMENT_HEIGHT};
   }
 
   /**
