@@ -6,6 +6,8 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 import org.junit.Test;
 
 /** Tests for the buildUseCaseDiagram spec parser. */
@@ -73,5 +75,53 @@ public class UseCaseSpecTest {
     assertTrue(problems("{\"actors\": [").contains("not valid JSON"));
     assertTrue(problems(null).contains("must be a JSON object"));
     assertTrue(problems("{\"actors\": [\" \"]}").contains("actors: empty name"));
+  }
+
+  @Test
+  public void rejectsCycles() {
+    String msg =
+        problems(
+            "{\"actors\": [\"A\", \"B\"], \"useCases\": [\"X\", \"Y\", \"Z\"],"
+                + " \"includes\": [[\"X\", \"Y\"]],"
+                + " \"extends\": [[\"X\", \"Y\", \"p\"]],"
+                + " \"generalizations\": [[\"A\", \"B\"], [\"B\", \"A\"]]}");
+    // X includes Y (X -> Y) and X extends Y (base Y -> X) close a loop.
+    assertTrue(msg, msg.contains("includes/extends: cycle X -> Y -> X"));
+    assertTrue(msg, msg.contains("generalizations: cycle A -> B -> A"));
+  }
+
+  @Test
+  public void warnsAboutCatalogMistakesInTheSpec() {
+    UseCaseSpec s =
+        UseCaseSpec.parse(
+            "{\"actors\": [\"Customer\", \"Time\", \"Shop\", \"Bank\", \"Idle\"],"
+                + " \"useCases\": [\"Order\", \"Pay\", \"Bill\", \"Coupon\", \"Lonely\"],"
+                + " \"links\": [[\"Customer\", \"Order\"], [\"Time\", \"Bill\"],"
+                + " [\"Shop\", \"Order\"], [\"Bank\", \"Pay\"]],"
+                + " \"calls\": [[\"Pay\", \"Bank\"]],"
+                + " \"includes\": [[\"Order\", \"Pay\"]],"
+                + " \"extends\": [[\"Coupon\", \"Order\"]]}");
+    List<String> w = s.warnings("Shop");
+    assertTrue(w.toString(), w.contains("use case 'Lonely' has no relationship"));
+    assertTrue(w.toString(), w.contains("actor 'Idle' has no relationship"));
+    assertTrue(w.toString(), w.contains("actor 'Shop' stands for the modelled system (§1.6)"));
+    assertTrue(w.toString(), w.contains("actor 'Time' needs the stereotype \"time\" (C4)"));
+    assertTrue(
+        w.toString(),
+        w.contains("'Pay' is included by one use case only; put its steps into the base (§1.11)"));
+    assertTrue(w.toString(), w.contains("actor 'Bank' is both primary and secondary for 'Pay'"));
+    assertTrue(w.toString(), w.contains("extend 'Coupon' -> 'Order' has no extension point"));
+    assertEquals(w.toString(), 7, w.size());
+  }
+
+  @Test
+  public void cleanSpecHasNoWarnings() {
+    UseCaseSpec s =
+        UseCaseSpec.parse(
+            "{\"actors\": [\"Rider\", \"Time\"], \"stereotypes\": {\"Time\": \"time\"},"
+                + " \"useCases\": [\"Return Bike\", \"Charge Fee\", \"Pay\"],"
+                + " \"links\": [[\"Rider\", \"Return Bike\"], [\"Time\", \"Charge Fee\"]],"
+                + " \"includes\": [[\"Return Bike\", \"Pay\"], [\"Charge Fee\", \"Pay\"]]}");
+    assertEquals(Collections.emptyList(), s.warnings("Bike Sharing"));
   }
 }

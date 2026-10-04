@@ -38,6 +38,8 @@ When unsure about a rule, read the section in `review/usecase.md`.
 `buildUseCaseDiagram(diagramName, systemName, spec, replace)`. It validates the whole spec
 first, builds, lays out and appends `checkLayout`. Use `replace: true` when rebuilding.
 Names already used in the project are shared with other diagrams (one actor, many diagrams).
+`Spec warnings` in the result are catalog mistakes seen in the spec alone: fix them in the
+spec and rebuild before the review, or keep one on purpose and say so in the report.
 
 ## 4. Review
 

@@ -481,7 +481,9 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               + " \"includes\": [[base, included]],"
               + " \"extends\": [[extending, base, extensionPoint?]],"
               + " \"generalizations\": [[childActor, parentActor]]}. The whole spec is validated"
-              + " first; nothing is created when it has problems. replace=true first deletes an"
+              + " first; nothing is created when it has problems (also a cycle). Catalog mistakes"
+              + " visible in the spec (unused element, include with one base, Time without"
+              + " «time», ...) come back as warnings. replace=true first deletes an"
               + " existing diagram of that name with its elements (shared ones stay on other"
               + " diagrams), so a corrected spec can be rebuilt")
   public String buildUseCaseDiagram(
@@ -546,6 +548,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       }
     }
     String layout = layoutUseCaseDiagram(diagramName, systemName);
+    List<String> warnings = s.warnings(systemName);
     return "Built '"
         + diagramName
         + "': "
@@ -561,7 +564,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         + " relationships\n"
         + layout
         + "\ncheckLayout: "
-        + checkLayout(diagramName);
+        + checkLayout(diagramName)
+        + (warnings.isEmpty() ? "" : "\nSpec warnings:\n- " + String.join("\n- ", warnings));
   }
 
   /**
