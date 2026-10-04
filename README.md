@@ -52,7 +52,7 @@ The plugin includes an embedded MCP server that:
 - **nameUseCaseRelationship(diagramName, sourceName, targetName, relationshipType, name)**: Name a relationship
 - **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary (reuses an existing one)
 - **layoutUseCaseDiagram(diagramName, systemName)**: House-style layout in one call: use case grid, boundary, actors, lines
-- **buildUseCaseDiagram(diagramName, systemName, spec)**: Create, lay out and check a whole use case diagram from one JSON spec (actors, stereotypes, useCases, links, calls, includes, extends, generalizations); the spec is validated first and nothing is created when it has problems
+- **buildUseCaseDiagram(diagramName, systemName, spec, replace)**: Create, lay out and check a whole use case diagram from one JSON spec (actors, stereotypes, useCases, links, calls, includes, extends, generalizations); the spec is validated first and nothing is created when it has problems; `replace=true` rebuilds an existing diagram from a corrected spec
 - **generateUseCaseReport(diagramName)**: Generate use case analysis report
 
 ##### Class Diagram (18 tools)

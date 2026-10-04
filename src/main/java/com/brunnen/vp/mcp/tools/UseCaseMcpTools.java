@@ -1,5 +1,6 @@
 package com.brunnen.vp.mcp.tools;
 
+import com.brunnen.vp.mcp.tool.OptionalParam;
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramLayoutEngine;
 import com.brunnen.vp.mcp.util.DiagramUtils;
@@ -49,48 +50,86 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     }
   }
 
-  @Tool(name = "addActor", description = "Add an actor to a use case diagram")
+  @Tool(
+      name = "addActor",
+      description =
+          "Add an actor to a use case diagram. An actor of that name already in the project (on"
+              + " another diagram) is shown here too instead of creating a second one")
   public String addActor(String actorName, String diagramName) {
     try {
       return runOnEdt(
-          () -> {
-            IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-
-            IActor actor = getModelElementFactory().createActor();
-            addToDiagram(diagram, actor, actorName);
-
-            return "Added actor '" + actorName + "' to diagram '" + diagramName + "'";
-          });
+          () ->
+              show(
+                  diagramName,
+                  actorName,
+                  DiagramUtils.findModelElementByName(actorName, IActor.class),
+                  getModelElementFactory()::createActor,
+                  "actor"));
     } catch (Exception e) {
       return "Error adding actor: " + e.getMessage();
     }
   }
 
-  @Tool(name = "addUseCase", description = "Add a use case to a use case diagram")
+  @Tool(
+      name = "addUseCase",
+      description =
+          "Add a use case to a use case diagram. A use case of that name already in the project"
+              + " (on another diagram) is shown here too instead of creating a second one")
   public String addUseCase(String useCaseName, String diagramName) {
     try {
       return runOnEdt(
-          () -> {
-            IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-
-            IUseCase useCase = getModelElementFactory().createUseCase();
-            addToDiagram(diagram, useCase, useCaseName);
-
-            return "Added use case '" + useCaseName + "' to diagram '" + diagramName + "'";
-          });
+          () ->
+              show(
+                  diagramName,
+                  useCaseName,
+                  DiagramUtils.findModelElementByName(useCaseName, IUseCase.class),
+                  getModelElementFactory()::createUseCase,
+                  "use case"));
     } catch (Exception e) {
       return "Error adding use case: " + e.getMessage();
     }
+  }
+
+  /**
+   * Show {@code existing} on the diagram, or a new element from {@code create} when there is none:
+   * in UML one actor appears on several diagrams, and VP refuses a second same-named element of a
+   * type anyway.
+   */
+  private String show(
+      String diagramName,
+      String name,
+      IModelElement existing,
+      java.util.function.Supplier<IModelElement> create,
+      String label) {
+    IUseCaseDiagramUIModel diagram =
+        (IUseCaseDiagramUIModel)
+            DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+    if (diagram == null) {
+      return "Diagram not found: " + diagramName;
+    }
+    if (existing != null && shownOn(existing, diagram) != null) {
+      return "The " + label + " '" + name + "' is already on diagram '" + diagramName + "'";
+    }
+    addToDiagram(diagram, existing != null ? existing : create.get(), name);
+    return "Added "
+        + label
+        + " '"
+        + name
+        + "' to diagram '"
+        + diagramName
+        + "'"
+        + (existing != null ? " (the project's existing " + label + ", shared)" : "");
+  }
+
+  /** The shape of {@code model} on {@code diagram}, or null. */
+  private static IDiagramElement shownOn(IModelElement model, IDiagramUIModel diagram) {
+    for (IDiagramElement de : model.getDiagramElements()) {
+      if (de.getDiagramUIModel() != null
+          && diagram.getId().equals(de.getDiagramUIModel().getId())) {
+        return de;
+      }
+    }
+    return null;
   }
 
   @Tool(
@@ -191,7 +230,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       name = "removeUseCaseElement",
       description =
           "Delete an actor or use case (and its relationships) from the MODEL by name, scoped to "
-              + "the given use case diagram")
+              + "the given use case diagram. One also shown on other diagrams is only removed from"
+              + " this diagram, with its relationships here")
   public String removeUseCaseElement(String diagramName, String elementName) {
     try {
       return runOnEdt(
@@ -203,14 +243,39 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               return "Diagram not found: " + diagramName;
             }
             // Only an element shown on this diagram: never a same-named one elsewhere.
-            findElement(diagram, elementName, IUseCase.class, IActor.class)
-                .getModelElement()
-                .delete();
-            return "Removed '" + elementName + "' from the model";
+            return removeFrom(
+                diagram, findElement(diagram, elementName, IUseCase.class, IActor.class));
           });
     } catch (Exception e) {
       return "Error removing element: " + e.getMessage();
     }
+  }
+
+  /**
+   * Delete a shape's model element, or, when other diagrams show it too, only the shape and its
+   * relationships on this diagram.
+   */
+  private static String removeFrom(IUseCaseDiagramUIModel diagram, IDiagramElement shape) {
+    IModelElement model = shape.getModelElement();
+    String name = model.getName();
+    if (model.getDiagramElements().length > 1) {
+      List<IConnectorUIModel> lines = new ArrayList<>();
+      lines.addAll(java.util.Arrays.asList(shape.toFromConnectorArray()));
+      lines.addAll(java.util.Arrays.asList(shape.toToConnectorArray()));
+      for (IConnectorUIModel line : lines) {
+        if (line.getModelElement() != null) {
+          line.getModelElement().delete();
+        }
+      }
+      diagram.removeDiagramElement(shape);
+      return "Removed '"
+          + name
+          + "' and its relationships from diagram '"
+          + diagram.getName()
+          + "'; it stays in the model, shown on other diagrams";
+    }
+    model.delete();
+    return "Removed '" + name + "' from the model";
   }
 
   @Tool(
@@ -416,8 +481,11 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               + " \"includes\": [[base, included]],"
               + " \"extends\": [[extending, base, extensionPoint?]],"
               + " \"generalizations\": [[childActor, parentActor]]}. The whole spec is validated"
-              + " first; nothing is created when it has problems")
-  public String buildUseCaseDiagram(String diagramName, String systemName, String spec) {
+              + " first; nothing is created when it has problems. replace=true first deletes an"
+              + " existing diagram of that name with its elements (shared ones stay on other"
+              + " diagrams), so a corrected spec can be rebuilt")
+  public String buildUseCaseDiagram(
+      String diagramName, String systemName, String spec, @OptionalParam boolean replace) {
     UseCaseSpec s;
     try {
       s = UseCaseSpec.parse(spec);
@@ -426,14 +494,20 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               () ->
                   DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class)
                       != null);
+      if (exists && !replace) {
+        return "Diagram '" + diagramName + "' already exists; pick another name or replace=true";
+      }
       if (exists) {
-        return "Diagram '" + diagramName + "' already exists; pick another name";
+        String removed = runOnEdt(() -> deleteDiagram(diagramName));
+        if (!removed.startsWith("Removed")) {
+          return "Could not replace '" + diagramName + "': " + removed;
+        }
       }
     } catch (Exception e) {
       return e.getMessage();
     }
-    // Build with the single-step tools (their success messages start with Created/Added/Named),
-    // stopping at the first step that does not succeed.
+    // Build with the single-step tools (their success messages start with Created/Added/Named;
+    // a shared actor may already carry its stereotype), then report the first failed step.
     List<String> steps = new ArrayList<>();
     steps.add(createUseCaseDiagram(diagramName));
     for (String actor : s.actors) {
@@ -464,7 +538,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       steps.add(addRelationship(diagramName, g[0], g[1], "Generalization"));
     }
     for (String step : steps) {
-      if (!step.startsWith("Created") && !step.startsWith("Added") && !step.startsWith("Named")) {
+      if (!step.startsWith("Created")
+          && !step.startsWith("Added")
+          && !step.startsWith("Named")
+          && !step.contains("already has stereotype")) {
         return "Stopped building '" + diagramName + "' (partly created): " + step;
       }
     }
@@ -485,6 +562,33 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         + layout
         + "\ncheckLayout: "
         + checkLayout(diagramName);
+  }
+
+  /**
+   * Delete a use case diagram with its actors, use cases and relationships ({@link #removeFrom}).
+   * The boundary is dissolved first: deleting its system would delete the use cases it owns, also
+   * ones shown on other diagrams. On the EDT.
+   */
+  private String deleteDiagram(String diagramName) {
+    IUseCaseDiagramUIModel diagram =
+        (IUseCaseDiagramUIModel)
+            DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+    for (IDiagramElement de : diagram.toDiagramElementArray()) {
+      if (de.getModelElement() instanceof ISystem) {
+        String r = removeSystemBoundary(diagram, de, de.getModelElement().getName());
+        if (!r.startsWith("Removed")) {
+          return r;
+        }
+      }
+    }
+    for (IDiagramElement de : diagram.toDiagramElementArray()) {
+      IModelElement m = de.getModelElement();
+      if (m instanceof IActor || m instanceof IUseCase) {
+        removeFrom(diagram, de);
+      }
+    }
+    diagram.delete();
+    return "Removed";
   }
 
   @Tool(

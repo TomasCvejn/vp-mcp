@@ -23,7 +23,9 @@ import java.util.Set;
  *   <li>a deeper use case linked directly to a primary actor gets a row of its own with the cells
  *       left of it empty, so the actor's line does not run through another use case;
  *   <li>other deeper use cases take the nearest usable row to their base's row, never a cell on an
- *       actor's line (left of an actor-linked or right of a secondary-linked use case).
+ *       actor's line (left of an actor-linked or right of a secondary-linked use case); above first
+ *       when the base's row holds a use case with another base below, so its line from below does
+ *       not cross this one.
  * </ul>
  */
 final class UseCaseGrid {
@@ -31,6 +33,8 @@ final class UseCaseGrid {
   private UseCaseGrid() {}
 
   /**
+   * Plan the grid cell of every use case.
+   *
    * @param useCases all use cases, in diagram order
    * @param actorUseCases primary actor -> its directly associated use cases (insertion order kept)
    * @param actorParent generalization child actor -> parent actor
@@ -82,10 +86,22 @@ final class UseCaseGrid {
           break;
         }
       }
-      // Nearest usable row to the base: base, +1, -1, +2, -2, ...
+      // Nearest usable row to the base: base, +1, -1, +2, -2, ... or upwards first when the use
+      // case already in the base's row has another base below (its line comes from below).
+      int dir = 1;
+      for (Map.Entry<String, Point> e : grid.cells.entrySet()) {
+        if (e.getValue().equals(new Point(col, base))) {
+          for (String b : bases.getOrDefault(e.getKey(), new ArrayList<>())) {
+            Point bp = grid.cells.get(b);
+            if (bp != null && bp.y > base) {
+              dir = -1;
+            }
+          }
+        }
+      }
       int row = base;
       for (int d = 1; grid.blocked(col, row); d++) {
-        row = base + ((d & 1) == 1 ? (d + 1) / 2 : -(d / 2));
+        row = base + dir * ((d & 1) == 1 ? (d + 1) / 2 : -(d / 2));
       }
       grid.put(uc, col, row);
       grid.rows = Math.max(grid.rows, row + 1);

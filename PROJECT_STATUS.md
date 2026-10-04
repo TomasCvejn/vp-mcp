@@ -187,6 +187,30 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   one running, so restart Visual Paradigm. `newProject(discardChanges)` refuses to drop unsaved
   changes unless `discardChanges` is true. Verified live (VP may report a freshly opened project
   as modified; after `saveProject` it is false and read-only tools keep it false).
+- **`usecase-diagram` skill** (`.claude/skills/usecase-diagram/SKILL.md`), written from a real
+  run (bike sharing): guard → spec (catalog rules) → `buildUseCaseDiagram` → export →
+  `diagram-reviewer` + `visual-reviewer` in parallel → fix loop. Model findings are fixed in
+  the spec and rebuilt; layout findings by hand (`setElementBounds` with 160x60, else it shrinks
+  the ellipse; then `rerouteConnectors`, lines do not follow a moved shape); requirement
+  questions go to the user. One shared `diagram-reviewer` for all types; a skill per type.
+- **Shared actors/use cases**: VP refuses a second same-named element of a type and silently
+  kept its default name ("Actor2"), while `addActor`/`addUseCase` reported success, so a second
+  diagram with e.g. `Time` could not be built. They now show the project's existing element
+  (UML: one actor, many diagrams); `addToDiagram` throws when VP refuses a name (all diagram
+  types). `removeUseCaseElement` only removes a shared element (and its relationships) from the
+  given diagram. `buildUseCaseDiagram` accepts a stereotype a shared actor already has.
+- **`buildUseCaseDiagram(..., replace)`**: `replace=true` deletes the existing diagram first
+  (boundary dissolved, so its system cannot take shared use cases along), so a corrected spec
+  is rebuilt instead of patched; a failed build no longer blocks its name.
+- **`UseCaseGrid`**: a dependent whose base row is taken by a use case with another base below
+  goes above first (bike sharing: Report Damage above Process Payment, which Charge
+  Subscription includes from far below; checkLayout reported the crossing).
+- **Transport**: deprecated `exchange.dispatch()` + a new single-thread executor per request
+  replaced by `dispatch(BLOCKING, task)` on one shared cached pool. Checkstyle warnings in test
+  names fixed; the build is warning-free.
+- Verified live: shared `Time` (with its «time») built on a second diagram, SmartTaxIS
+  unchanged (`checkLayout` OK), `replace` rebuilt a partly built diagram; after the planner fix
+  the bike sharing spec builds with `checkLayout` OK and no manual move, over the new transport.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

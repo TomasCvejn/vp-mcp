@@ -28,6 +28,9 @@ import java.util.concurrent.Executors;
 public class McpServer {
 
   private static final ObjectMapper MAPPER = new ObjectMapper();
+  // SSE streams and tool calls block (stream writes, the EDT); idle threads end after 60 s.
+  private static final java.util.concurrent.ExecutorService BLOCKING =
+      Executors.newCachedThreadPool();
   // Loopback only: the MCP clients run on the same machine as Visual Paradigm, and the tools can
   // edit and save the open project, so they must not be reachable from the network.
   private static final String BIND_ADDRESS = "127.0.0.1"; // NOPMD AvoidUsingHardCodedIP
@@ -103,44 +106,40 @@ public class McpServer {
     exchange.getResponseHeaders().put(new HttpString("Cache-Control"), "no-cache");
     exchange.setStatusCode(200);
 
-    // Dispatch to worker thread for blocking I/O
-    exchange.dispatch();
-    exchange.startBlocking();
+    // Run the SSE loop with blocking I/O on its own thread (not one of the few Undertow workers)
+    exchange.dispatch(
+        BLOCKING,
+        () -> {
+          exchange.startBlocking();
+          OutputStream out = exchange.getOutputStream();
+          sseStreams.put(sessionId, out);
+          try {
+            // Send endpoint event
+            String endpointUrl = "/mcp/messages?sessionId=" + sessionId;
+            String sseMsg = "event: endpoint\ndata: " + endpointUrl + "\n\n";
+            synchronized (out) {
+              out.write(sseMsg.getBytes(StandardCharsets.UTF_8));
+              out.flush();
+            }
 
-    // Run SSE loop on a separate thread
-    Executors.newSingleThreadExecutor()
-        .execute(
-            () -> {
-              OutputStream out = exchange.getOutputStream();
-              sseStreams.put(sessionId, out);
+            // Keep connection alive
+            while (!Thread.currentThread().isInterrupted() && exchange.getConnection().isOpen()) {
+              Thread.sleep(15000);
               try {
-                // Send endpoint event
-                String endpointUrl = "/mcp/messages?sessionId=" + sessionId;
-                String sseMsg = "event: endpoint\ndata: " + endpointUrl + "\n\n";
                 synchronized (out) {
-                  out.write(sseMsg.getBytes(StandardCharsets.UTF_8));
+                  out.write(":\n\n".getBytes(StandardCharsets.UTF_8));
                   out.flush();
                 }
-
-                // Keep connection alive
-                while (!Thread.currentThread().isInterrupted()
-                    && exchange.getConnection().isOpen()) {
-                  Thread.sleep(15000);
-                  try {
-                    synchronized (out) {
-                      out.write(":\n\n".getBytes(StandardCharsets.UTF_8));
-                      out.flush();
-                    }
-                  } catch (IOException e) {
-                    break;
-                  }
-                }
-              } catch (IOException | InterruptedException e) {
-                // Client disconnected
-              } finally {
-                sseStreams.remove(sessionId);
+              } catch (IOException e) {
+                break;
               }
-            });
+            }
+          } catch (IOException | InterruptedException e) {
+            // Client disconnected
+          } finally {
+            sseStreams.remove(sessionId);
+          }
+        });
   }
 
   // --- Message Handler ---
@@ -176,57 +175,54 @@ public class McpServer {
     }
     final String sessionId = sid;
 
-    // Read request body
-    exchange.dispatch();
-    exchange.startBlocking();
+    exchange.dispatch(
+        BLOCKING,
+        () -> {
+          exchange.startBlocking();
+          try {
+            String body =
+                new String(exchange.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
 
-    Executors.newSingleThreadExecutor()
-        .execute(
-            () -> {
-              try {
-                String body =
-                    new String(exchange.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            JsonNode request = MAPPER.readTree(body);
+            JsonNode response = processRequest(request);
 
-                JsonNode request = MAPPER.readTree(body);
-                JsonNode response = processRequest(request);
-
-                // Notifications (no id) don't get a response
-                if (request.has("id") && !request.get("id").isNull()) {
-                  // Push the response over the SSE stream if one is open for this session (MCP SSE
-                  // transport); otherwise return it as the HTTP response body.
-                  OutputStream sseOut = sessionId != null ? sseStreams.get(sessionId) : null;
-                  if (sseOut != null) {
-                    String json = MAPPER.writeValueAsString(response);
-                    String sseMsg = "event: message\ndata: " + json + "\n\n";
-                    synchronized (sseOut) {
-                      sseOut.write(sseMsg.getBytes(StandardCharsets.UTF_8));
-                      sseOut.flush();
-                    }
-                    exchange.setStatusCode(202);
-                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
-                    exchange.getOutputStream().write("{}".getBytes(StandardCharsets.UTF_8));
-                  } else {
-                    byte[] respBytes = MAPPER.writeValueAsBytes(response);
-                    exchange.setStatusCode(200);
-                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
-                    exchange.getOutputStream().write(respBytes);
-                  }
-                } else {
-                  exchange.setStatusCode(200);
+            // Notifications (no id) don't get a response
+            if (request.has("id") && !request.get("id").isNull()) {
+              // Push the response over the SSE stream if one is open for this session (MCP SSE
+              // transport); otherwise return it as the HTTP response body.
+              OutputStream sseOut = sessionId != null ? sseStreams.get(sessionId) : null;
+              if (sseOut != null) {
+                String json = MAPPER.writeValueAsString(response);
+                String sseMsg = "event: message\ndata: " + json + "\n\n";
+                synchronized (sseOut) {
+                  sseOut.write(sseMsg.getBytes(StandardCharsets.UTF_8));
+                  sseOut.flush();
                 }
-                exchange.getOutputStream().close();
-              } catch (IOException | RuntimeException e) {
-                try {
-                  exchange.setStatusCode(500);
-                  exchange
-                      .getOutputStream()
-                      .write(("Error: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
-                  exchange.getOutputStream().close();
-                } catch (IOException suppressed) {
-                  System.err.println("Failed to send error response: " + suppressed.getMessage());
-                }
+                exchange.setStatusCode(202);
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+                exchange.getOutputStream().write("{}".getBytes(StandardCharsets.UTF_8));
+              } else {
+                byte[] respBytes = MAPPER.writeValueAsBytes(response);
+                exchange.setStatusCode(200);
+                exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+                exchange.getOutputStream().write(respBytes);
               }
-            });
+            } else {
+              exchange.setStatusCode(200);
+            }
+            exchange.getOutputStream().close();
+          } catch (IOException | RuntimeException e) {
+            try {
+              exchange.setStatusCode(500);
+              exchange
+                  .getOutputStream()
+                  .write(("Error: " + e.getMessage()).getBytes(StandardCharsets.UTF_8));
+              exchange.getOutputStream().close();
+            } catch (IOException suppressed) {
+              System.err.println("Failed to send error response: " + suppressed.getMessage());
+            }
+          }
+        });
   }
 
   // --- MCP Protocol ---

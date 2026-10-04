@@ -54,7 +54,7 @@ public class LayoutCheckTest {
   }
 
   @Test
-  public void reportsLineThroughAForeignShapeButNotThroughItsOwnEnds() {
+  public void reportsLineThroughForeignShapeButNotThroughItsOwnEnds() {
     // A -> U2 runs straight through U1 (the Time line through Manage Assets case).
     Box actor = new Box("A", false, false, 0, 100, 40, 60);
     List<String> issues =
