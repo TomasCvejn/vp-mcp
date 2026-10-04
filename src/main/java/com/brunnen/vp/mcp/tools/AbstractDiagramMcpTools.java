@@ -593,6 +593,24 @@ public abstract class AbstractDiagramMcpTools {
     DiagramLayoutEngine.applyStructuredLayout(getDiagramManager(), diagram);
   }
 
+  /**
+   * Make VP draw the diagram (export to a temp PNG, deleted), which is when it routes connectors
+   * and sizes captions. Not on the EDT.
+   *
+   * @return null when rendered, else the export's error message
+   */
+  protected String renderDiagram(String diagramName) throws java.io.IOException {
+    File rendered = File.createTempFile("render", ".png");
+    try {
+      String exported = exportDiagramImage(diagramName, rendered.getPath());
+      return exported.startsWith("Exported") ? null : exported;
+    } finally {
+      if (!rendered.delete()) {
+        rendered.deleteOnExit();
+      }
+    }
+  }
+
   @Tool(
       name = "checkLayout",
       description =
@@ -603,16 +621,9 @@ public abstract class AbstractDiagramMcpTools {
     try {
       // VP routes connectors only when it draws the diagram: render it first, or the check would
       // see the routes from before the last move.
-      File rendered = File.createTempFile("checkLayout", ".png");
-      try {
-        String exported = exportDiagramImage(diagramName, rendered.getPath());
-        if (!exported.startsWith("Exported")) {
-          return exported;
-        }
-      } finally {
-        if (!rendered.delete()) {
-          rendered.deleteOnExit();
-        }
+      String renderError = renderDiagram(diagramName);
+      if (renderError != null) {
+        return renderError;
       }
       return runOnEdt(
           () -> {

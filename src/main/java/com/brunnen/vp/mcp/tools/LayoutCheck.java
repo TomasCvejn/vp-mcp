@@ -63,6 +63,8 @@ final class LayoutCheck {
   // A line counts as passing through a shape only when it enters it by more than this many px,
   // so a line merely grazing an outline is not reported.
   private static final float GRAZE = 2f;
+  // Gap between a relationship label and its own line.
+  private static final int LABEL_GAP = 4;
 
   private LayoutCheck() {}
 
@@ -105,6 +107,40 @@ final class LayoutCheck {
       }
     }
     return issues;
+  }
+
+  /**
+   * Where to put a w x h label of the line {@code own} so that it is clearly that line's: centered
+   * just beside the midpoint, on whichever side is farther from the {@code others} lines.
+   *
+   * @return the label's top-left corner
+   */
+  static Point labelSpot(Line2D own, List<Line2D> others, int w, int h) {
+    double mx = (own.getX1() + own.getX2()) / 2;
+    double my = (own.getY1() + own.getY2()) / 2;
+    double dx = own.getX2() - own.getX1();
+    double dy = own.getY2() - own.getY1();
+    double len = Math.hypot(dx, dy);
+    // Unit normal; a degenerate line gets the vertical one.
+    double nx = len == 0 ? 0 : -dy / len;
+    double ny = len == 0 ? 1 : dx / len;
+    // Far enough that the label's nearest corner clears the line, whatever its slope.
+    double offset = (Math.abs(nx) * w + Math.abs(ny) * h) / 2 + LABEL_GAP;
+    Point best = null;
+    double bestClearance = -1;
+    for (int side : new int[] {1, -1}) {
+      double cx = mx + side * nx * offset;
+      double cy = my + side * ny * offset;
+      double clearance = Double.MAX_VALUE;
+      for (Line2D other : others) {
+        clearance = Math.min(clearance, other.ptSegDist(cx, cy));
+      }
+      if (clearance > bestClearance) {
+        bestClearance = clearance;
+        best = new Point((int) Math.round(cx - w / 2.0), (int) Math.round(cy - h / 2.0));
+      }
+    }
+    return best;
   }
 
   private static boolean intersect(Area a, Area b) {
