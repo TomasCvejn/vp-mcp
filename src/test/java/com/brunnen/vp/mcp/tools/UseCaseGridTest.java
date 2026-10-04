@@ -35,6 +35,9 @@ public class UseCaseGridTest {
             "Specify Equipment Requirements",
             "Place Order",
             "Search for Vehicle");
+    // VP's element order, which layoutUseCaseDiagram sorts by name before planning.
+    useCases = new java.util.ArrayList<>(useCases);
+    Collections.sort(useCases);
     Map<String, List<String>> actors = new LinkedHashMap<>();
     // Unregistered User comes first in this input; its Search for Vehicle depends on Registered
     // User's Place Order, so it must still end up right after the Registered/Premium group.
@@ -82,7 +85,8 @@ public class UseCaseGridTest {
     // so Report Incident goes one row up instead of sitting on one of them.
     assertEquals(new Point(2, 0), p.get("Report Incident"));
 
-    // VP's element order differs between sessions: the plan must not depend on it.
+    // VP's element order differs between sessions: the plan must not depend on the order of
+    // actors and their links (the use case order is an input: the spec's, or by name).
     Map<String, List<String>> reversed = new LinkedHashMap<>();
     List<String> names = new java.util.ArrayList<>(actors.keySet());
     java.util.Collections.reverse(names);
@@ -91,9 +95,7 @@ public class UseCaseGridTest {
       java.util.Collections.reverse(ucs);
       reversed.put(n, ucs);
     }
-    List<String> reversedUseCases = new java.util.ArrayList<>(useCases);
-    java.util.Collections.reverse(reversedUseCases);
-    assertEquals(p, UseCaseGrid.plan(reversedUseCases, reversed, parent, deps, secondaryLinked));
+    assertEquals(p, UseCaseGrid.plan(useCases, reversed, parent, deps, secondaryLinked));
     assertEquals(useCases.size(), p.size());
   }
 
@@ -175,5 +177,24 @@ public class UseCaseGridTest {
     assertEquals(new Point(0, 0), p.get("Cancel Reservation"));
     assertEquals(new Point(0, 1), p.get("Reserve Class"));
     assertEquals(new Point(0, 2), p.get("Register Membership"));
+  }
+
+  /** buildUseCaseDiagram passes the spec's order: rows follow it instead of the names. */
+  @Test
+  public void keepsTheGivenUseCaseOrder() {
+    Map<String, List<String>> actors = new LinkedHashMap<>();
+    actors.put("Member", Arrays.asList("Cancel Reservation", "Reserve Class", "Pay Membership"));
+
+    Map<String, Point> p =
+        UseCaseGrid.plan(
+            Arrays.asList("Reserve Class", "Cancel Reservation", "Pay Membership"),
+            actors,
+            new HashMap<>(),
+            Collections.emptyList(),
+            new HashSet<>());
+
+    assertEquals(new Point(0, 0), p.get("Reserve Class"));
+    assertEquals(new Point(0, 1), p.get("Cancel Reservation"));
+    assertEquals(new Point(0, 2), p.get("Pay Membership"));
   }
 }
