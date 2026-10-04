@@ -107,6 +107,12 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `exportDiagramImage`, `getRelationshipDetails` and the project tools moved out of
   `ClassDiagramMcpTools` (names unchanged; the server registers each tool name once). Only
   class-specific tools remain in `ClassDiagramMcpTools`.
+- **Compact use case rows**: `layoutUseCaseDiagram` puts rows 90 px apart (was 110; 30 px between
+  ellipses), so tall diagrams are ~16 % shorter (Wolt boundary 1460 -> 1220 px). Actors stack with
+  a 30 px gap so one-row-apart actors stay level with their use cases; an actor with a stereotype
+  reserves one more caption line (15 px), otherwise the next actor's head touched its «system»
+  caption (seen on SmartTaxIS; checkLayout does not check captions). A real second use case column
+  was rejected: lines from left-side primary actors (C3) would cross the first column.
 - **«include»/«extend» labels**: VP put every label below-right of its line's midpoint, so one
   could sit between two lines (reviewers flagged it as ambiguous). `layoutUseCaseDiagram` now
   renders the diagram (shared `renderDiagram`: export to a temp PNG; routes and caption sizes are
