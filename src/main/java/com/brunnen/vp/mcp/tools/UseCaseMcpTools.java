@@ -202,6 +202,36 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   }
 
   @Tool(
+      name = "addActorStereotype",
+      description =
+          "Add a stereotype to an actor of a use case diagram, e.g. 'system' for an actor that"
+              + " is another system")
+  public String addActorStereotype(String diagramName, String actorName, String stereotype) {
+    try {
+      return runOnEdt(
+          () -> {
+            IUseCaseDiagramUIModel diagram =
+                (IUseCaseDiagramUIModel)
+                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            IModelElement actor = findModelElement(actorName, IActor.class, diagram);
+            if (actor == null) {
+              return "Actor not found on diagram: " + actorName;
+            }
+            if (stereotype == null || stereotype.trim().isEmpty()) {
+              return "stereotype is required";
+            }
+            ((IActor) actor).addStereotype(stereotype.trim());
+            return "Added «" + stereotype.trim() + "» to actor '" + actorName + "'";
+          });
+    } catch (Exception e) {
+      return "Error adding stereotype: " + e.getMessage();
+    }
+  }
+
+  @Tool(
       name = "removeUseCaseElement",
       description =
           "Delete an actor or use case (and its relationships) from the MODEL by name, scoped to "
@@ -446,6 +476,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             java.util.Map<IModelElement, IDiagramElement> ucDeByModel = new java.util.HashMap<>();
             List<IDiagramElement> actorDes = new ArrayList<>();
             List<IAssociation> associations = new ArrayList<>();
+            List<IDiagramElement> systemDes = new ArrayList<>();
             int minX = Integer.MAX_VALUE;
             int minY = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE;
@@ -467,6 +498,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                   actorDes.add(de);
                 } else if (model instanceof IAssociation) {
                   associations.add((IAssociation) model);
+                } else if (model instanceof ISystem) {
+                  systemDes.add(de);
                 }
               }
             }
@@ -474,14 +507,33 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               return "No use cases found on diagram '" + diagramName + "' to wrap";
             }
 
-            ISystem system = getModelElementFactory().createSystem();
+            // Reuse an existing boundary so calling this again re-wraps instead of stacking a
+            // second box; any further boundaries left empty by the move are deleted.
+            IDiagramElement sysDe = systemDes.isEmpty() ? null : systemDes.get(0);
+            ISystem system =
+                sysDe != null
+                    ? (ISystem) sysDe.getModelElement()
+                    : getModelElementFactory().createSystem();
             system.setName(systemName);
             for (IUseCase uc : useCases) {
               system.addUseCase(uc);
             }
+            for (IDiagramElement extra :
+                systemDes.subList(Math.min(1, systemDes.size()), systemDes.size())) {
+              IModelElement extraModel = extra.getModelElement();
+              for (IShapeUIModel child : extra.toChildArray()) {
+                extra.removeChild(child);
+                sysDe.addChild(child);
+              }
+              if (extraModel.childCount() == 0) {
+                extraModel.delete();
+              }
+            }
 
             int pad = 40;
-            IDiagramElement sysDe = getDiagramManager().createDiagramElement(diagram, system);
+            if (sysDe == null) {
+              sysDe = getDiagramManager().createDiagramElement(diagram, system);
+            }
             if (sysDe instanceof IShapeUIModel) {
               IShapeUIModel shape = (IShapeUIModel) sysDe;
               shape.setCustomText(systemName);
@@ -604,6 +656,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       IDiagramElement de = slots.get(i).de;
       int w = de.getWidth();
       de.setBounds(leftSide ? edgeX - w : edgeX, ys[i], w, de.getHeight());
+      de.resetCaption(); // keep the actor name under the moved figure
     }
   }
 

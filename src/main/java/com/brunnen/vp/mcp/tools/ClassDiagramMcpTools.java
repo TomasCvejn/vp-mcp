@@ -881,6 +881,8 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             } else {
               de.setBounds(x, y, width, height);
             }
+            // Otherwise the name caption (e.g. an actor's label) stays at the old position.
+            de.resetCaption();
             return "Bounds of '"
                 + elementName
                 + "': "
@@ -1081,16 +1083,14 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
   @Tool(
       name = "getRelationshipDetails",
       description =
-          "Audit dump (JSON) of a class diagram: classes (abstract, stereotypes, owner, attributes,"
+          "Audit dump (JSON) of a diagram: classes (abstract, stereotypes, owner, attributes,"
               + " bounds) and every relationship with both ends (multiplicity, aggregation kind,"
-              + " role) and name")
+              + " role), name and connector geometry. Works for any diagram type")
   public String getRelationshipDetails(String diagramName) {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
+            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
             if (diagram == null) {
               return "Diagram not found: " + diagramName;
             }
@@ -1201,25 +1201,42 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
       description = "Open a diagram and export it as a PNG image to an absolute file path")
   public String exportDiagramImage(String diagramName, String filePath) {
     try {
+      if (filePath == null || filePath.trim().isEmpty()) {
+        return "filePath is required";
+      }
+      final File file = new File(filePath.trim());
+      File dir = file.getAbsoluteFile().getParentFile();
+      if (dir != null && !dir.isDirectory() && !dir.mkdirs()) {
+        return "Cannot create directory: " + dir;
+      }
+      // Activating a diagram can fail on the first try when the project has been idle
+      // (the EDT needs to process the open before getActiveDiagram reflects it). Retry the
+      // open+activate a few times, sleeping off the EDT between attempts.
+      if (runOnEdt(() -> DiagramUtils.findDiagramByName(diagramName) == null)) {
+        return "Diagram not found: " + diagramName;
+      }
+      boolean activated = false;
+      for (int attempt = 0; attempt < 3 && !activated; attempt++) {
+        if (attempt > 0) {
+          Thread.sleep(300L);
+        }
+        activated =
+            runOnEdt(
+                () -> {
+                  IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+                  if (diagram == null) {
+                    return false;
+                  }
+                  getDiagramManager().openDiagram(diagram);
+                  IDiagramUIModel active = getDiagramManager().getActiveDiagram();
+                  return active != null && active.getId().equals(diagram.getId());
+                });
+      }
+      if (!activated) {
+        return "Diagram could not be activated: " + diagramName;
+      }
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-            if (filePath == null || filePath.trim().isEmpty()) {
-              return "filePath is required";
-            }
-            File file = new File(filePath.trim());
-            File dir = file.getAbsoluteFile().getParentFile();
-            if (dir != null && !dir.isDirectory() && !dir.mkdirs()) {
-              return "Cannot create directory: " + dir;
-            }
-            getDiagramManager().openDiagram(diagram);
-            IDiagramUIModel active = getDiagramManager().getActiveDiagram();
-            if (active == null || !active.getId().equals(diagram.getId())) {
-              return "Diagram could not be activated: " + diagramName;
-            }
             ExportDiagramAsImageOption exportOption =
                 new ExportDiagramAsImageOption(ExportDiagramAsImageOption.IMAGE_TYPE_PNG);
             ExportDiagramAsImageWatermark emptyWatermark = (graphics, width, height) -> {};
