@@ -1256,12 +1256,19 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
   @Tool(
       name = "newProject",
       description =
-          "VP File > New Project: close the open project and start a new empty one (unsaved"
-              + " changes of the current project are discarded); save it with saveProjectAs")
-  public String newProject() {
+          "VP File > New Project: close the open project and start a new empty one; save it"
+              + " with saveProjectAs. Refuses while the open project has unsaved changes unless"
+              + " discardChanges is true")
+  public String newProject(Boolean discardChanges) {
     try {
       return runOnEdt(
           () -> {
+            IProject current = DiagramUtils.getProject();
+            if (current != null && current.isModified() && !Boolean.TRUE.equals(discardChanges)) {
+              return "Project '"
+                  + current.getName()
+                  + "' has unsaved changes: saveProject first, or pass discardChanges=true";
+            }
             boolean ok = ApplicationManager.instance().getProjectManager().newProject();
             IProject project = DiagramUtils.getProject();
             return ok && project != null
@@ -1323,7 +1330,10 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
 
   @Tool(
       name = "getProjectInfo",
-      description = "Name and file path of the project currently open in Visual Paradigm")
+      description =
+          "Name, file path and unsaved-changes flag of the project open in Visual Paradigm, plus"
+              + " when the running plugin was loaded and whether a newer build is installed"
+              + " (stale = restart Visual Paradigm to load it)")
   public String getProjectInfo() {
     try {
       return runOnEdt(
@@ -1337,11 +1347,33 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             File file = project.getProjectFile();
             root.put("file", file != null ? file.getAbsolutePath() : null);
             root.put("diagramCount", DiagramUtils.findAllDiagrams(IDiagramUIModel.class).size());
+            root.put("modified", project.isModified());
+            root.set("plugin", pluginInfo());
             return JSON.writeValueAsString(root);
           });
     } catch (Exception e) {
       return "Error reading project info: " + e.getMessage();
     }
+  }
+
+  /** When this plugin build was loaded, and whether the installed jar has changed since. */
+  private static ObjectNode pluginInfo() {
+    ObjectNode info = JSON.createObjectNode();
+    info.put("loadedAt", java.time.Instant.ofEpochMilli(LOADED_AT).toString());
+    java.security.CodeSource source =
+        ClassDiagramMcpTools.class.getProtectionDomain().getCodeSource();
+    File jar = null;
+    try {
+      jar = source == null ? null : new File(source.getLocation().toURI());
+    } catch (java.net.URISyntaxException e) {
+      jar = null;
+    }
+    if (jar != null && jar.isFile()) {
+      info.put("jar", jar.getAbsolutePath());
+      info.put("installedAt", java.time.Instant.ofEpochMilli(jar.lastModified()).toString());
+      info.put("stale", jar.lastModified() > LOADED_AT);
+    }
+    return info;
   }
 
   @Tool(

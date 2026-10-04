@@ -163,7 +163,7 @@ main() {
 		mkdir -p "$VP_PLUGINS_DIR"
 		export MAVEN_OPTS
 		shift
-		mvn install -P install "$@"
+		mvn install -P install -DskipTests "$@" # quick install; ./run all runs the tests
 		log_success "Plugin installed"
 		;;
 	all)

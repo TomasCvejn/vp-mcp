@@ -71,10 +71,10 @@ The plugin includes an embedded MCP server that:
 - **generateClassReport(diagramName)**: Generate class diagram analysis report
 
 ##### Project (4 tools)
-- **newProject()**: Create a new, empty project
+- **newProject(discardChanges)**: Create a new, empty project (refuses to drop unsaved changes unless `discardChanges` is true)
 - **saveProject()**: Save the current project
 - **saveProjectAs(filePath)**: Save the project to a new file (never overwrites an existing file)
-- **getProjectInfo()**: Return the project name and file path
+- **getProjectInfo()**: Return the project name, file path and unsaved-changes flag, plus whether the running plugin build is stale (restart Visual Paradigm)
 
 ##### ERD - Entity Relationship Diagram (7 tools)
 - **createErd(diagramName)**: Create new ER diagrams
