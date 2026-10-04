@@ -531,11 +531,12 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     }
   }
 
-  // Grid geometry: a 160x60 use case cell, columns 380 px and rows 110 px apart.
+  // Grid geometry: a 160x60 use case cell, columns 380 px and rows 90 px apart.
   private static final int GRID_X = 360;
   private static final int GRID_Y = 100;
   private static final int COLUMN_STEP = 380;
-  private static final int ROW_STEP = 110;
+  private static final int CAPTION_LINE = 15;
+  private static final int ROW_STEP = 90; // 30 px between use cases keeps tall diagrams compact
   private static final int CELL_W = 160;
   private static final int CELL_H = 60;
 
@@ -845,9 +846,14 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     int[] heights = new int[slots.size()];
     for (int i = 0; i < slots.size(); i++) {
       desired[i] = slots.get(i).desiredY;
-      heights[i] = slots.get(i).de.getHeight();
+      // The name caption hangs below the figure; a stereotype adds a second caption line.
+      IModelElement actor = slots.get(i).de.getModelElement();
+      int captionLines = actor != null && actor.stereotypeCount() > 0 ? 2 : 1;
+      heights[i] = slots.get(i).de.getHeight() + (captionLines - 1) * CAPTION_LINE;
     }
-    int[] ys = stackYs(desired, heights, 40);
+    // A 30 px gap keeps plain actors (60 tall) one row (90) apart level with their use cases;
+    // an actor with a two-line caption pushes the next one down by a caption line.
+    int[] ys = stackYs(desired, heights, 30);
     for (int i = 0; i < slots.size(); i++) {
       IDiagramElement de = slots.get(i).de;
       // The stick figure is ~40 px wide; a wider box makes arrows stop short of it (C2).
