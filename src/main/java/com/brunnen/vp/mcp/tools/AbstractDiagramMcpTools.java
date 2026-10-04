@@ -41,6 +41,9 @@ import javax.swing.SwingUtilities;
  */
 public abstract class AbstractDiagramMcpTools {
 
+  /** When Visual Paradigm loaded this plugin build (tool classes load with the plugin). */
+  protected static final long LOADED_AT = System.currentTimeMillis();
+
   private final java.util.Map<String, Integer> elementZoneCounts = new HashMap<>();
 
   /**

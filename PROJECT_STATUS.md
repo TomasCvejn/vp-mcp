@@ -98,8 +98,16 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `DirectedAssociation`, so generated diagrams drew arrowheads at use cases for primary actors.
   Now: plain `Association` always for a primary actor, `DirectedAssociation` only use case ->
   secondary actor (verified via the new navigability dump; SmartTaxIS had all ends `navigable`).
-- Note: `pom.xml` hardcodes `skipTests=true`, so `./run test` runs no tests; run them with
-  `java -cp target/classes:target/test-classes:<deps> org.junit.runner.JUnitCore <TestClass>`.
+- **Tests run again**: `./run test` and `./run all` execute the JUnit 4 suite (the main build had
+  `skipTests=true` and unused JUnit 5/Mockito made surefire pick the JUnit 5 provider, finding 0
+  tests). `./run install` stays quick with `-DskipTests`. JaCoCo's 85 % instruction coverage rule
+  applies to the VP-free classes only (`LayoutCheck*`, `UseCaseGrid*`); add a pure class there
+  together with its tests. VP API glue is verified live.
+- **Dev-cycle guards**: `getProjectInfo` reports `modified` (unsaved changes) and
+  `plugin.{loadedAt, installedAt, stale}`; `stale: true` means a newer build is installed than the
+  one running, so restart Visual Paradigm. `newProject(discardChanges)` refuses to drop unsaved
+  changes unless `discardChanges` is true. Verified live (VP may report a freshly opened project
+  as modified; after `saveProject` it is false and read-only tools keep it false).
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 
