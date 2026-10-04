@@ -81,6 +81,23 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   after `exportDiagramImage` so connector routes are current. Verified live: `OK` on the clean
   SmartTaxIS diagram, exactly the 3 planted problems after moving shapes. The `visual-reviewer`
   agent treats its output as ground truth for overlaps/crossings/lines-through-shapes.
+- **`layoutUseCaseDiagram(diagramName, systemName)`**: one-call house-style layout. Pure planner
+  `UseCaseGrid` (`UseCaseGridTest`) puts use cases on a grid: column = include/extend depth;
+  primary actors walked in order with a generalization child right after its parent and an actor
+  whose use case depends on another actor's use case right after that actor; use cases another
+  actor depends on go last in their actor's rows; an actor-linked deeper use case gets its own row
+  with the cells left of it empty; other dependents take the nearest usable row to their base
+  (never a cell on a line to a primary actor on the left or to a secondary actor on the right).
+  Then `addSystemBoundary` and re-anchoring of all lines. Verified live: SmartTaxIS scrambled with
+  `autoLayoutDiagram`, then one `layoutUseCaseDiagram` call → `checkLayout` `OK`.
+- **`addSystemBoundary`** recognizes «system» in any case via the shared `isSecondary` helper.
+  Actors stay aligned with the average of their use cases: with C1 clarified (lines aim at the
+  center), a line VP clips at the name caption still belongs to the actor's fan.
+- **`getRelationshipDetails`** also reports each association end's navigability.
+- **`addRelationship` description**: it used to give "actor->use case" as an example for
+  `DirectedAssociation`, so generated diagrams drew arrowheads at use cases for primary actors.
+  Now: plain `Association` always for a primary actor, `DirectedAssociation` only use case ->
+  secondary actor (verified via the new navigability dump; SmartTaxIS had all ends `navigable`).
 - Note: `pom.xml` hardcodes `skipTests=true`, so `./run test` runs no tests; run them with
   `java -cp target/classes:target/test-classes:<deps> org.junit.runner.JUnitCore <TestClass>`.
 

@@ -98,10 +98,11 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               + "Include -> source=base (main), target=included (sub); "
               + "Extend -> source=extending (sub), target=extended (main, owns extension point); "
               + "Generalization -> source=child, target=parent; "
-              + "Association -> plain line, no arrow (DEFAULT for actor<->use case); "
-              + "DirectedAssociation -> arrow from source to target, use ONLY when the "
-              + "interaction is genuinely one-directional "
-              + "(e.g. actor->use case, or use case->secondary actor)")
+              + "Association -> plain line, no arrow: ALWAYS for a primary actor (the actor"
+              + " starts the use case; source=actor, target=use case); "
+              + "DirectedAssociation -> arrow at the target: ONLY use case -> secondary actor"
+              + " (the system calls the actor; source=use case, target=actor). Never use it"
+              + " from an actor to a use case")
   public String addRelationship(
       String diagramName, String sourceName, String targetName, String relationshipType) {
     try {
@@ -455,6 +456,114 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   }
 
   @Tool(
+      name = "layoutUseCaseDiagram",
+      description =
+          "Lay out a use case diagram by the house conventions: use cases in a grid (column by"
+              + " include/extend depth, rows grouped per primary actor, a generalization child"
+              + " right after its parent), then wrap them in a system boundary named systemName,"
+              + " place actors (primary left, secondary right) and re-anchor all lines. Follow"
+              + " with exportDiagramImage and checkLayout")
+  public String layoutUseCaseDiagram(String diagramName, String systemName) {
+    try {
+      String placed =
+          runOnEdt(
+              () -> {
+                IUseCaseDiagramUIModel diagram =
+                    (IUseCaseDiagramUIModel)
+                        DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+                if (diagram == null) {
+                  return null;
+                }
+                return placeUseCasesOnGrid(diagram);
+              });
+      if (placed == null) {
+        return "Diagram not found: " + diagramName;
+      }
+      String boundary = addSystemBoundary(diagramName, systemName);
+      runOnEdt(
+          () -> {
+            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+            for (IDiagramElement de : getDiagramElementsList(diagram)) {
+              if (de instanceof IConnectorUIModel) {
+                centerConnector((IConnectorUIModel) de);
+              }
+            }
+          });
+      return placed + "\n" + boundary;
+    } catch (Exception e) {
+      return "Error laying out diagram: " + e.getMessage();
+    }
+  }
+
+  // Grid geometry: a 160x60 use case cell, columns 380 px and rows 110 px apart.
+  private static final int GRID_X = 360;
+  private static final int GRID_Y = 100;
+  private static final int COLUMN_STEP = 380;
+  private static final int ROW_STEP = 110;
+  private static final int CELL_W = 160;
+  private static final int CELL_H = 60;
+
+  /** Reads the diagram into {@link UseCaseGrid}, moves every use case to its cell. On the EDT. */
+  private String placeUseCasesOnGrid(IUseCaseDiagramUIModel diagram) {
+    List<IDiagramElement> elements = getDiagramElementsList(diagram);
+    java.util.Map<String, IDiagramElement> ucShapes = new java.util.LinkedHashMap<>();
+    List<IModelElement> actors = new ArrayList<>();
+    List<IAssociation> associations = new ArrayList<>();
+    List<String[]> deps = new ArrayList<>();
+    java.util.Map<String, String> actorParent = new java.util.HashMap<>();
+    for (IDiagramElement de : elements) {
+      IModelElement m = de.getModelElement();
+      if (m instanceof IUseCase) {
+        ucShapes.put(m.getName(), de);
+      } else if (m instanceof IActor) {
+        actors.add(m);
+      } else if (m instanceof IAssociation) {
+        associations.add((IAssociation) m);
+      } else if (m instanceof IInclude || m instanceof IExtend) {
+        // Both are stored from = base use case, to = included / extending use case.
+        IRelationship r = (IRelationship) m;
+        deps.add(new String[] {r.getFrom().getName(), r.getTo().getName()});
+      } else if (m instanceof IGeneralization) {
+        IRelationship r = (IRelationship) m; // from = parent, to = child
+        actorParent.put(r.getTo().getName(), r.getFrom().getName());
+      }
+    }
+    java.util.Map<String, List<String>> actorUseCases = new java.util.LinkedHashMap<>();
+    java.util.Set<String> secondaryLinked = new java.util.HashSet<>();
+    for (IModelElement actor : actors) {
+      boolean secondary = isSecondary(actor, associations);
+      List<String> linked = new ArrayList<>();
+      for (IAssociation a : associations) {
+        IModelElement other = otherEnd(a, actor);
+        if (other instanceof IUseCase) {
+          linked.add(other.getName());
+        }
+      }
+      if (secondary) {
+        secondaryLinked.addAll(linked);
+      } else {
+        actorUseCases.put(actor.getName(), linked);
+      }
+    }
+    java.util.Map<String, java.awt.Point> cells =
+        UseCaseGrid.plan(
+            new ArrayList<>(ucShapes.keySet()), actorUseCases, actorParent, deps, secondaryLinked);
+    for (java.util.Map.Entry<String, java.awt.Point> e : cells.entrySet()) {
+      IDiagramElement de = ucShapes.get(e.getKey());
+      int w = de.getWidth();
+      int h = de.getHeight();
+      // Center in the cell, so bigger ellipses (extension points) stay on the row/column axis.
+      de.setBounds(
+          GRID_X + e.getValue().x * COLUMN_STEP + (CELL_W - w) / 2,
+          GRID_Y + e.getValue().y * ROW_STEP + (CELL_H - h) / 2,
+          w,
+          h);
+      de.resetCaption();
+    }
+    return "Placed " + cells.size() + " use case(s) on a grid";
+  }
+
+  @Tool(
       name = "addSystemBoundary",
       description =
           "Wrap all use cases of a use case diagram in a labeled system boundary rectangle "
@@ -552,47 +661,21 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             List<ActorSlot> rightSlots = new ArrayList<>();
             for (IDiagramElement actorDe : actorDes) {
               IModelElement actorModel = actorDe.getModelElement();
-              String actorName = actorModel.getName();
-              // Secondary = a use case points a navigable arrow at the actor (system calls it),
-              // or it carries the «System» stereotype. Everything else is a primary actor.
-              boolean secondary = actorModel.hasStereotype("System");
-              List<Integer> connectedCenters = new ArrayList<>();
+              boolean secondary = isSecondary(actorModel, associations);
+              int sum = 0;
+              int count = 0;
               for (IAssociation a : associations) {
-                IModelElement fromM = a.getFrom();
-                IModelElement toM = a.getTo();
-                String fromN = fromM != null ? fromM.getName() : null;
-                String toN = toM != null ? toM.getName() : null;
-                IAssociationEnd actorEnd = null;
-                IModelElement otherM = null;
-                if (actorName != null && actorName.equals(fromN)) {
-                  actorEnd = (IAssociationEnd) a.getFromEnd();
-                  otherM = toM;
-                } else if (actorName != null && actorName.equals(toN)) {
-                  actorEnd = (IAssociationEnd) a.getToEnd();
-                  otherM = fromM;
-                }
-                if (actorEnd == null || !(otherM instanceof IUseCase)) {
-                  continue;
-                }
-                if (actorEnd.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE) {
-                  secondary = true;
-                }
-                IDiagramElement ucDe = ucDeByModel.get(otherM);
+                IModelElement other = otherEnd(a, actorModel);
+                IDiagramElement ucDe = other instanceof IUseCase ? ucDeByModel.get(other) : null;
                 if (ucDe != null) {
-                  connectedCenters.add(ucDe.getY() + ucDe.getHeight() / 2);
+                  sum += ucDe.getY() + ucDe.getHeight() / 2;
+                  count++;
                 }
               }
-              int h = actorDe.getHeight();
-              int desiredY;
-              if (connectedCenters.isEmpty()) {
-                desiredY = minY; // unconnected actor: top of the use-case band
-              } else {
-                int sum = 0;
-                for (int c : connectedCenters) {
-                  sum += c;
-                }
-                desiredY = sum / connectedCenters.size() - h / 2;
-              }
+              int desiredY =
+                  count == 0
+                      ? minY // unconnected actor: top of the use-case band
+                      : sum / count - actorDe.getHeight() / 2;
               (secondary ? rightSlots : leftSlots).add(new ActorSlot(actorDe, desiredY));
             }
             placeActorColumn(leftSlots, boxLeft - gap, true);
@@ -622,6 +705,45 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     } catch (Exception e) {
       return "Error adding system boundary: " + e.getMessage();
     }
+  }
+
+  /**
+   * Secondary actor = the system calls it: a linked use case points a navigable arrow at it, or it
+   * carries the «system» stereotype (any case). Everything else is a primary actor.
+   */
+  static boolean isSecondary(IModelElement actor, List<IAssociation> associations) {
+    if (actor instanceof IActor) {
+      for (String st : ((IActor) actor).toStereotypeArray()) {
+        if ("system".equalsIgnoreCase(st)) {
+          return true;
+        }
+      }
+    }
+    for (IAssociation a : associations) {
+      IAssociationEnd end = null;
+      if (sameElement(a.getFrom(), actor)) {
+        end = (IAssociationEnd) a.getFromEnd();
+      } else if (sameElement(a.getTo(), actor)) {
+        end = (IAssociationEnd) a.getToEnd();
+      }
+      if (end != null && end.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** The element at the other end of {@code rel} from {@code element}, or null if not attached. */
+  private static IModelElement otherEnd(IRelationship rel, IModelElement element) {
+    if (sameElement(rel.getFrom(), element)) {
+      return rel.getTo();
+    }
+    return sameElement(rel.getTo(), element) ? rel.getFrom() : null;
+  }
+
+  /** VP returns non-canonical wrappers, so model elements are compared by id. */
+  private static boolean sameElement(IModelElement a, IModelElement b) {
+    return a != null && b != null && a.getId().equals(b.getId());
   }
 
   /** An actor shape and the Y it would like to sit at (centred on its connected use cases). */
