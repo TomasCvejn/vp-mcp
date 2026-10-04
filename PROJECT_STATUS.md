@@ -77,8 +77,9 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
 - **`checkLayout(diagramName)`** (any diagram type): geometric check for overlapping shapes
   (exact ellipse geometry for use cases), shapes straddling a system boundary/package edge, lines
   through a shape they do not connect (2 px graze tolerance) and crossing lines (lines sharing a
-  shape are exempt, e.g. an actor's fan). Pure logic in `LayoutCheck` (`LayoutCheckTest`); run it
-  after `exportDiagramImage` so connector routes are current. Verified live: `OK` on the clean
+  shape are exempt, e.g. an actor's fan). Pure logic in `LayoutCheck` (`LayoutCheckTest`). VP
+  routes connectors only when it draws a diagram, so `checkLayout` first renders it (export to a
+  temp PNG, deleted) instead of relying on the caller to export first. Verified live: `OK` on the clean
   SmartTaxIS diagram, exactly the 3 planted problems after moving shapes. The `visual-reviewer`
   agent treats its output as ground truth for overlaps/crossings/lines-through-shapes.
 - **`layoutUseCaseDiagram(diagramName, systemName)`**: one-call house-style layout. Pure planner

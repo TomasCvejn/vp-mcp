@@ -597,10 +597,22 @@ public abstract class AbstractDiagramMcpTools {
       description =
           "Geometric layout check of a diagram: overlapping shapes, shapes straddling a system"
               + " boundary or package edge, lines running through a shape they do not connect,"
-              + " and crossing lines. Run after exportDiagramImage so connector routes are"
-              + " current. Returns 'OK' or one issue per line")
+              + " and crossing lines. Returns 'OK' or one issue per line")
   public String checkLayout(String diagramName) {
     try {
+      // VP routes connectors only when it draws the diagram: render it first, or the check would
+      // see the routes from before the last move.
+      File rendered = File.createTempFile("checkLayout", ".png");
+      try {
+        String exported = exportDiagramImage(diagramName, rendered.getPath());
+        if (!exported.startsWith("Exported")) {
+          return exported;
+        }
+      } finally {
+        if (!rendered.delete()) {
+          rendered.deleteOnExit();
+        }
+      }
       return runOnEdt(
           () -> {
             IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
