@@ -70,8 +70,8 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   possible; `review/usecase-conventions.md` C1 was clarified accordingly. Actor shapes of 40x60
   (instead of 160x60) make lines reach the figure.
 - **`getRelationshipDetails`** works on any diagram type (connector points, diffs, captions).
-- **`addActorStereotype(diagram, actor, stereotype)`**: «system» for actors that are other systems
-  (catalog §1.15), «time» for the Time actor (house convention C4).
+- **Stereotypes** via the generic `addStereotype(diagram, element, stereotype)`: «system» for
+  actors that are other systems (catalog §1.15), «time» for the Time actor (convention C4).
 - **`exportDiagramImage`**: diagram-not-found is checked before the activation retry loop
   (SpotBugs `NP_BOOLEAN_RETURN_NULL`).
 - **`checkLayout(diagramName)`** (any diagram type): geometric check for overlapping shapes
@@ -94,6 +94,12 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   Actors stay aligned with the average of their use cases: with C1 clarified (lines aim at the
   center), a line VP clips at the name caption still belongs to the actor's fan.
 - **`getRelationshipDetails`** also reports each association end's navigability.
+- **`getDiagramElements`** lists stereotypes (`Actor: Time «time»`) and where an association draws
+  arrowheads (`{arrow at: Payment Provider}`); unknown element types use `getModelType()`
+  (`System: SmartTaxIS`) instead of VP's obfuscated class name (`dgz`), also in getElementCounts.
+- **`getDiagramElements`** lists stereotypes (`Actor: Time «time»`) and where an association draws
+  arrowheads (`{arrow at: Payment Provider}`); unknown element types use `getModelType()`
+  (`System: SmartTaxIS`) instead of VP's obfuscated class name (`dgz`), also in getElementCounts.
 - **`addRelationship` description**: it used to give "actor->use case" as an example for
   `DirectedAssociation`, so generated diagrams drew arrowheads at use cases for primary actors.
   Now: plain `Association` always for a primary actor, `DirectedAssociation` only use case ->

@@ -203,36 +203,6 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   }
 
   @Tool(
-      name = "addActorStereotype",
-      description =
-          "Add a stereotype to an actor of a use case diagram, e.g. 'system' for an actor that"
-              + " is another system")
-  public String addActorStereotype(String diagramName, String actorName, String stereotype) {
-    try {
-      return runOnEdt(
-          () -> {
-            IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-            IModelElement actor = findModelElement(actorName, IActor.class, diagram);
-            if (actor == null) {
-              return "Actor not found on diagram: " + actorName;
-            }
-            if (stereotype == null || stereotype.trim().isEmpty()) {
-              return "stereotype is required";
-            }
-            ((IActor) actor).addStereotype(stereotype.trim());
-            return "Added «" + stereotype.trim() + "» to actor '" + actorName + "'";
-          });
-    } catch (Exception e) {
-      return "Error adding stereotype: " + e.getMessage();
-    }
-  }
-
-  @Tool(
       name = "removeUseCaseElement",
       description =
           "Delete an actor or use case (and its relationships) from the MODEL by name, scoped to "

@@ -383,8 +383,9 @@ public abstract class AbstractDiagramMcpTools {
   @Tool(
       name = "getDiagramElements",
       description =
-          "Get all elements (shapes and connectors) on a diagram with their names, types, "
-              + "details, and positions")
+          "Get all elements (shapes and connectors) on a diagram with their names, types,"
+              + " stereotypes («...»), details and positions; associations show where arrowheads"
+              + " are drawn ({arrow at: ...})")
   public String getDiagramElements(String diagramName) {
     try {
       return runOnEdt(
@@ -432,6 +433,19 @@ public abstract class AbstractDiagramMcpTools {
                     if (toEnd != null && toEnd.getMultiplicity() != null) {
                       sb.append(" [").append(toEnd.getMultiplicity()).append("]");
                     }
+                    IAssociationEnd fromEnd = (IAssociationEnd) ((IAssociation) model).getFromEnd();
+                    List<String> arrows = new ArrayList<>();
+                    if (fromEnd != null
+                        && fromEnd.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE) {
+                      arrows.add(from);
+                    }
+                    if (toEnd != null
+                        && toEnd.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE) {
+                      arrows.add(to);
+                    }
+                    if (!arrows.isEmpty()) {
+                      sb.append(" {arrow at: ").append(String.join(", ", arrows)).append("}");
+                    }
                   }
                   sb.append("\n");
                 } else {
@@ -440,6 +454,7 @@ public abstract class AbstractDiagramMcpTools {
               } else if (model instanceof IClass) {
                 // Classes: show attributes and operations
                 sb.append("  - ").append(type).append(": ").append(name);
+                sb.append(stereotypeSuffix(model));
                 sb.append(" at (").append(de.getX()).append(",").append(de.getY());
                 sb.append(") size ").append(de.getWidth()).append("x").append(de.getHeight());
                 sb.append("\n");
@@ -533,8 +548,11 @@ public abstract class AbstractDiagramMcpTools {
                 sb.append(") size ").append(de.getWidth()).append("x").append(de.getHeight());
                 sb.append("\n");
               } else {
-                // Default: type + name + position
+                // Default: type + name + stereotypes + position
                 sb.append("  - ").append(type).append(": ").append(name);
+                if (model != null) {
+                  sb.append(stereotypeSuffix(model));
+                }
                 sb.append(" at (").append(de.getX()).append(",").append(de.getY());
                 sb.append(") size ").append(de.getWidth()).append("x").append(de.getHeight());
                 sb.append("\n");
@@ -784,7 +802,22 @@ public abstract class AbstractDiagramMcpTools {
     if (model instanceof IMessage) {
       return "Message";
     }
-    return model.getClass().getSimpleName();
+    // getModelType() is the API's type name ("System", "Package", "Note", ...); the class name
+    // is an obfuscated VP implementation class (e.g. "dgz" for a system boundary).
+    return model.getModelType();
+  }
+
+  /** " «a, b»" for an element's stereotypes, or "" when it has none. */
+  private static String stereotypeSuffix(IModelElement model) {
+    com.vp.plugin.model.IStereotype[] stereotypes = model.toStereotypeModelArray();
+    if (stereotypes == null || stereotypes.length == 0) {
+      return "";
+    }
+    List<String> names = new ArrayList<>();
+    for (com.vp.plugin.model.IStereotype st : stereotypes) {
+      names.add(st.getName());
+    }
+    return " «" + String.join(", ", names) + "»";
   }
 
   /** Re-anchor an existing connector to the current centers of its two shapes. */
