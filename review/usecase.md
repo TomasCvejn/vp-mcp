@@ -5,15 +5,15 @@
 > **1 Use Case Diagram** from the document *Katalog chyb v UML diagramech*
 > ("Catalog of errors in UML diagrams", PB007 — Software Engineering I).
 >
-> - Diagrams (Figures 1–18, 27–36) are rewritten in **PlantUML**. PlantUML lays
+> - Sections **1.10** (textual specification, Figures 19–26) and **1.14**
+>   (Figures 32–33) are left out on purpose; the numbering keeps the original
+>   gaps so section ids match the catalog.
+> - Diagrams (Figures 1–18, 27–31, 34–36) are rewritten in **PlantUML**. PlantUML lays
 >   elements out automatically, so exact positions differ from the original;
 >   preserved are the elements, relationships, arrow directions, stereotypes and
 >   error highlighting (red). Blocks contain `!pragma layout smetana`, so they
 >   render even without Graphviz installed.
 > - **All text, including use case and actor names, is translated to English.**
-> - Textual specifications (Figures 19–26) are not diagrams but tables — rewritten
->   as **markdown tables**. Error rows (red-underlined in the original) are **bold**
->   and marked ⚠.
 
 ---
 
