@@ -481,9 +481,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               + " \"includes\": [[base, included]],"
               + " \"extends\": [[extending, base, extensionPoint?]],"
               + " \"generalizations\": [[childActor, parentActor]]}. The whole spec is validated"
-              + " first; nothing is created when it has problems (also a cycle). Catalog mistakes"
-              + " visible in the spec (unused element, include with one base, Time without"
-              + " «time», ...) come back as warnings. replace=true first deletes an"
+              + " first; nothing is created when it has problems (also a cycle). The result ends"
+              + " with checkLayout and checkUseCaseDiagram. replace=true first deletes an"
               + " existing diagram of that name with its elements (shared ones stay on other"
               + " diagrams), so a corrected spec can be rebuilt")
   public String buildUseCaseDiagram(
@@ -548,7 +547,6 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       }
     }
     String layout = layoutUseCaseDiagram(diagramName, systemName);
-    List<String> warnings = s.warnings(systemName);
     return "Built '"
         + diagramName
         + "': "
@@ -565,7 +563,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         + layout
         + "\ncheckLayout: "
         + checkLayout(diagramName)
-        + (warnings.isEmpty() ? "" : "\nSpec warnings:\n- " + String.join("\n- ", warnings));
+        + "\ncheckUseCaseDiagram: "
+        + checkUseCaseDiagram(diagramName);
   }
 
   /**
@@ -593,6 +592,94 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     }
     diagram.delete();
     return "Removed";
+  }
+
+  @Tool(
+      name = "checkUseCaseDiagram",
+      description =
+          "Check a use case diagram's model against the checklist items it answers for sure:"
+              + " use cases inside one named boundary, named extension points, primary actors"
+              + " left and secondary right, «time» on Time, arrowheads only at secondary actors,"
+              + " includes with one base, elements without relationships, plus exact counts."
+              + " Pass its output to the diagram reviewer as ground truth")
+  public String checkUseCaseDiagram(String diagramName) {
+    try {
+      return runOnEdt(
+          () -> {
+            IUseCaseDiagramUIModel diagram =
+                (IUseCaseDiagramUIModel)
+                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            UseCaseCheck c = new UseCaseCheck();
+            for (IDiagramElement de : diagram.toDiagramElementArray()) {
+              IModelElement m = de.getModelElement();
+              if (m instanceof IActor) {
+                List<String> stereotypes = new ArrayList<>();
+                com.vp.plugin.model.IStereotype[] sts = m.toStereotypeModelArray();
+                for (com.vp.plugin.model.IStereotype st :
+                    sts != null ? sts : new com.vp.plugin.model.IStereotype[0]) { // null if none
+                  stereotypes.add(st.getName());
+                }
+                c.actors.put(m.getName(), stereotypes);
+                c.actorX.put(m.getName(), de.getX() + de.getWidth() / 2.0);
+              } else if (m instanceof IUseCase) {
+                // Inside is decided by geometry: use case shapes are not child shapes of the
+                // boundary, and the model owner is wrong for a shared use case.
+                c.useCases.put(
+                    m.getName(),
+                    new double[] {de.getX(), de.getY(), de.getWidth(), de.getHeight()});
+              } else if (m instanceof ISystem) {
+                c.boundaries.add(
+                    new Object[] {
+                      m.getName(),
+                      (double) de.getX(),
+                      (double) de.getY(),
+                      (double) de.getWidth(),
+                      (double) de.getHeight()
+                    });
+              } else if (m instanceof IAssociation) {
+                IAssociation a = (IAssociation) m;
+                c.associations.add(
+                    new String[] {
+                      a.getFrom().getName(),
+                      a.getTo().getName(),
+                      String.valueOf(navigable((IAssociationEnd) a.getFromEnd())),
+                      String.valueOf(navigable((IAssociationEnd) a.getToEnd()))
+                    });
+              } else if (m instanceof IInclude) {
+                IRelationship r = (IRelationship) m; // from = base, to = included
+                c.includes.add(new String[] {r.getFrom().getName(), r.getTo().getName()});
+              } else if (m instanceof IExtend) {
+                IExtend e = (IExtend) m; // from = base, to = extending
+                IExtensionPoint ep = e.getExtensionPoint();
+                c.extendsList.add(
+                    new String[] {
+                      e.getTo().getName(),
+                      e.getFrom().getName(),
+                      ep != null && ep.getName() != null ? ep.getName() : ""
+                    });
+              } else if (m instanceof IGeneralization) {
+                IRelationship r = (IRelationship) m; // from = parent, to = child
+                c.generalizations.add(new String[] {r.getTo().getName(), r.getFrom().getName()});
+              }
+            }
+            List<String> out = c.run();
+            return out.get(0)
+                + "\n"
+                + (out.size() == 1 ? "OK" : String.join("\n", out.subList(1, out.size())))
+                + "\n(ground truth for "
+                + UseCaseCheck.COVERS
+                + ")";
+          });
+    } catch (Exception e) {
+      return "Error checking use case diagram: " + e;
+    }
+  }
+
+  private static boolean navigable(IAssociationEnd end) {
+    return end != null && end.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE;
   }
 
   @Tool(

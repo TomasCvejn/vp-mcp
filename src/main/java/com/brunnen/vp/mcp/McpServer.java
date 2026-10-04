@@ -47,7 +47,8 @@ public class McpServer {
           + " restart Visual Paradigm first; never save or discard the project unless asked."
           + " Elements are found by name within a diagram.\n"
           + "Use case diagram: one buildUseCaseDiagram call with the whole JSON spec (it"
-          + " validates, builds, lays out and runs checkLayout); to change it, edit the spec and"
+          + " validates, builds, lays out and runs checkLayout and checkUseCaseDiagram); to"
+          + " change it, edit the spec and"
           + " call it again with replace=true instead of patching with single-step tools.\n"
           + "After changing any diagram: exportDiagramImage to look at it, and checkLayout for"
           + " overlaps and crossings. After moving shapes by hand: rerouteConnectors.";

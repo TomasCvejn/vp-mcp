@@ -14,6 +14,8 @@ never edit, fix, or regenerate anything.
   `sequence` may not exist yet).
 - Either a **PNG path** to review, or a **diagram name** to export first.
 - Optionally the **requirements** the diagram was made from.
+- Optionally the output of a **model check** (e.g. `checkUseCaseDiagram`): exact counts,
+  problems read from the model, and the ids it is ground truth for.
 
 ## Steps
 
@@ -40,10 +42,13 @@ never edit, fix, or regenerate anything.
    under review show this mistake?* These files are the checklist — do not skip an
    item because it looks unlikely, and do not check against items that are not in
    them. Cite the id (`§1.x`, `C<n>`, `SYN1`, …) for each finding.
-5. **If you were given requirements**, check them too: every requirement is shown by
+5. **If you were given a model check**, report each problem it lists under its id, and
+   for the ids it is ground truth for do not report anything it does not list — it read
+   the model, you are reading pixels. Take counts from it, not from the image.
+6. **If you were given requirements**, check them too: every requirement is shown by
    some element, and no element is invented beyond them. A requirement that can be
    read two ways is reported as a question (`[warn] requirements — …`), not guessed.
-6. If the image doesn't clearly show something, say "can't tell from the image"
+7. If the image doesn't clearly show something, say "can't tell from the image"
    instead of passing it silently.
 
 ## Output

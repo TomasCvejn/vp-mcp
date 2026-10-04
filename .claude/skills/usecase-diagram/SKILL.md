@@ -43,16 +43,18 @@ into the report. One question now is cheaper than a review round.
 ## 3. Build
 
 `buildUseCaseDiagram(diagramName, systemName, spec, replace)`. It validates the whole spec
-first, builds, lays out and appends `checkLayout`. Use `replace: true` when rebuilding.
+first, builds, lays out and appends `checkLayout` and `checkUseCaseDiagram`. Use
+`replace: true` when rebuilding.
 Names already used in the project are shared with other diagrams (one actor, many diagrams).
-`Spec warnings` in the result are catalog mistakes seen in the spec alone: fix them in the
-spec and rebuild before the review, or keep one on purpose and say so in the report.
+Problems `checkUseCaseDiagram` lists are certain (it reads the model): fix them in the spec
+and rebuild before the review, or keep one on purpose and say so in the report.
 
 ## 4. Review
 
 1. `exportDiagramImage` to the scratchpad.
-2. `diagram-reviewer` with the type `usecase`, the PNG path and **the requirements text**
-   (it checks that every requirement is covered).
+2. `diagram-reviewer` with the type `usecase`, the PNG path, **the requirements text** (it
+   checks that every requirement is covered) and **the `checkUseCaseDiagram` output** (ground
+   truth for the ids it names, so the reviewer judges only what needs judgement).
 3. `visual-reviewer` (the PNG path and the `checkLayout` output) only when `checkLayout` is
    not `OK`: with a clean geometry it finds nits only. Run both in parallel when both run.
 
@@ -64,7 +66,7 @@ spec and rebuild before the review, or keep one on purpose and say so in the rep
   layout is computed and a rebuild draws the same picture. Move the shape by hand:
   `setElementBounds` **with** `width: 160, height: 60` (without them it shrinks the ellipse
   to its text), then `rerouteConnectors` (lines do not follow a moved shape), then
-  `checkLayout`. A later rebuild drops manual moves, so fix the model first.
+  `checkLayout` and `checkUseCaseDiagram` (a moved actor can break C3). A later rebuild drops manual moves, so fix the model first.
 - A finding that is a question about the requirements (e.g. "may report damage" = only on
   return, or any time?) goes to the user instead of being guessed.
 

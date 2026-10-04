@@ -272,6 +272,7 @@
                                     <includes>
                                         <include>com.brunnen.vp.mcp.tools.LayoutCheck*</include>
                                         <include>com.brunnen.vp.mcp.tools.UseCaseGrid*</include>
+                                        <include>com.brunnen.vp.mcp.tools.UseCaseCheck*</include>
                                         <include>com.brunnen.vp.mcp.tools.UseCaseSpec*</include>
                                     </includes>
                                     <limits>
