@@ -74,6 +74,13 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   (catalog §1.15), «time» for the Time actor (house convention C4).
 - **`exportDiagramImage`**: diagram-not-found is checked before the activation retry loop
   (SpotBugs `NP_BOOLEAN_RETURN_NULL`).
+- **`checkLayout(diagramName)`** (any diagram type): geometric check for overlapping shapes
+  (exact ellipse geometry for use cases), shapes straddling a system boundary/package edge, lines
+  through a shape they do not connect (2 px graze tolerance) and crossing lines (lines sharing a
+  shape are exempt, e.g. an actor's fan). Pure logic in `LayoutCheck` (`LayoutCheckTest`); run it
+  after `exportDiagramImage` so connector routes are current. Verified live: `OK` on the clean
+  SmartTaxIS diagram, exactly the 3 planted problems after moving shapes. The `visual-reviewer`
+  agent treats its output as ground truth for overlaps/crossings/lines-through-shapes.
 - Note: `pom.xml` hardcodes `skipTests=true`, so `./run test` runs no tests; run them with
   `java -cp target/classes:target/test-classes:<deps> org.junit.runner.JUnitCore <TestClass>`.
 
