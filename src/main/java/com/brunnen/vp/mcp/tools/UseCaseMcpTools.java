@@ -4,6 +4,7 @@ import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramLayoutEngine;
 import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
+import com.vp.plugin.diagram.ICaptionUIModel;
 import com.vp.plugin.diagram.IConnectorUIModel;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramTypeConstants;
@@ -520,6 +521,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               }
             }
           });
+      String renderError = renderDiagram(diagramName);
+      if (renderError == null) {
+        runOnEdt(() -> placeRelationshipLabels(DiagramUtils.findDiagramByName(diagramName)));
+      }
       return placed + "\n" + boundary;
     } catch (Exception e) {
       return "Error laying out diagram: " + e.getMessage();
@@ -533,6 +538,42 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   private static final int ROW_STEP = 110;
   private static final int CELL_W = 160;
   private static final int CELL_H = 60;
+
+  /**
+   * Put each «include»/«extend» label beside the middle of its own line, on the side away from the
+   * other lines, so it cannot be read as another line's label. On the EDT, after rendering (routes
+   * and caption sizes are only known then).
+   */
+  private void placeRelationshipLabels(IDiagramUIModel diagram) {
+    List<IConnectorUIModel> connectors = new ArrayList<>();
+    for (IDiagramElement de : getDiagramElementsList(diagram)) {
+      if (de instanceof IConnectorUIModel && ((IConnectorUIModel) de).getPoints() != null) {
+        connectors.add((IConnectorUIModel) de);
+      }
+    }
+    for (IConnectorUIModel c : connectors) {
+      IModelElement model = c.getModelElement();
+      ICaptionUIModel cap = c.getCaptionUIModel();
+      if (!(model instanceof IInclude || model instanceof IExtend) || cap == null) {
+        continue;
+      }
+      List<java.awt.geom.Line2D> others = new ArrayList<>();
+      for (IConnectorUIModel o : connectors) {
+        if (!o.getId().equals(c.getId())) {
+          others.add(segment(o));
+        }
+      }
+      java.awt.Point spot =
+          LayoutCheck.labelSpot(segment(c), others, cap.getWidth(), cap.getHeight());
+      cap.setBounds(spot.x, spot.y, cap.getWidth(), cap.getHeight());
+    }
+  }
+
+  /** A connector as the straight line between its first and last point. */
+  private static java.awt.geom.Line2D segment(IConnectorUIModel c) {
+    java.awt.Point[] p = c.getPoints();
+    return new java.awt.geom.Line2D.Double(p[0], p[p.length - 1]);
+  }
 
   /** Reads the diagram into {@link UseCaseGrid}, moves every use case to its cell. On the EDT. */
   private String placeUseCasesOnGrid(IUseCaseDiagramUIModel diagram) {

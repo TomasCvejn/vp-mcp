@@ -84,4 +84,17 @@ public class LayoutCheckTest {
     assertTrue(issues.contains("crossing: B-U2 x A-U3"));
     assertEquals(2, issues.size());
   }
+
+  @Test
+  public void labelGoesBesideItsLineOnTheSideAwayFromOthers() {
+    java.awt.geom.Line2D own = new java.awt.geom.Line2D.Double(0, 100, 200, 100);
+    // Another line 30 px below: the 80x16 label goes above its own line (center y 100-12).
+    java.awt.geom.Line2D below = new java.awt.geom.Line2D.Double(0, 130, 200, 130);
+    assertEquals(
+        new Point(60, 80), LayoutCheck.labelSpot(own, Collections.singletonList(below), 80, 16));
+    // The other line above instead: the label goes below (center y 100+12).
+    java.awt.geom.Line2D above = new java.awt.geom.Line2D.Double(0, 70, 200, 70);
+    assertEquals(
+        new Point(60, 104), LayoutCheck.labelSpot(own, Collections.singletonList(above), 80, 16));
+  }
 }

@@ -107,6 +107,12 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `exportDiagramImage`, `getRelationshipDetails` and the project tools moved out of
   `ClassDiagramMcpTools` (names unchanged; the server registers each tool name once). Only
   class-specific tools remain in `ClassDiagramMcpTools`.
+- **«include»/«extend» labels**: VP put every label below-right of its line's midpoint, so one
+  could sit between two lines (reviewers flagged it as ambiguous). `layoutUseCaseDiagram` now
+  renders the diagram (shared `renderDiagram`: export to a temp PNG; routes and caption sizes are
+  only known then) and moves each label beside the middle of its own line, on the side farther
+  from the other lines (pure `LayoutCheck.labelSpot`, tested). Caption bounds are absolute diagram
+  coordinates; verified live that VP keeps them on later renders.
 - **Optional tool parameters**: the input schema used to mark every parameter required, so strict
   MCP clients had to send values for optional ones (elementType, discardChanges, addClass
   options, multiplicities, ...). A parameter annotated `@OptionalParam` (tool package) is now left
