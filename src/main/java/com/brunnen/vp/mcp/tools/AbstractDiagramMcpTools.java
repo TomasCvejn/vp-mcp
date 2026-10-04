@@ -119,6 +119,18 @@ public abstract class AbstractDiagramMcpTools {
       IDiagramUIModel diagram, IModelElement element, String name) {
     DiagramManager dm = ApplicationManager.instance().getDiagramManager();
     element.setName(name);
+    // VP silently keeps a default name ("Actor2") when another element of the type has this one.
+    if (!name.equals(element.getName())) {
+      if (element.getDiagramElements().length == 0) {
+        element.delete();
+      }
+      throw new IllegalArgumentException(
+          "Visual Paradigm refused the name '"
+              + name
+              + "': another "
+              + element.getModelType()
+              + " in the project already has it");
+    }
     IDiagramElement diagramElement = dm.createDiagramElement(diagram, element);
     if (diagramElement instanceof IShapeUIModel) {
       ((IShapeUIModel) diagramElement).setCustomText(name);
@@ -700,7 +712,7 @@ public abstract class AbstractDiagramMcpTools {
    * own: move the use cases out of the system (model and shapes), then delete the system. On the
    * EDT.
    */
-  private String removeSystemBoundary(
+  protected String removeSystemBoundary(
       IDiagramUIModel diagram, IDiagramElement boundary, String elementName) {
     com.vp.plugin.model.ISystem system = (com.vp.plugin.model.ISystem) boundary.getModelElement();
     for (IShapeUIModel child : boundary.toChildArray()) {

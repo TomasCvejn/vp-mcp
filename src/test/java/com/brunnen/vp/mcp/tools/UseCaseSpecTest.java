@@ -22,7 +22,7 @@ public class UseCaseSpecTest {
   }
 
   @Test
-  public void parsesAWholeDiagram() {
+  public void parsesWholeDiagram() {
     UseCaseSpec s =
         UseCaseSpec.parse(
             "{\"actors\": [\"Customer\", \"Payment Gateway\", \"Premium\"],"

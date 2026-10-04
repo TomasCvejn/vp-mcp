@@ -120,4 +120,36 @@ public class UseCaseGridTest {
     parent.put("Y", "X");
     assertEquals(Arrays.asList("X", "Y"), UseCaseGrid.actorOrder(actors, parent, new HashMap<>()));
   }
+
+  /**
+   * Bike sharing: Process Payment (included by Return Bike and by Charge Subscription far below)
+   * takes Return Bike's row, so the extending Report Damage goes above it, not into the path of the
+   * include line from below.
+   */
+  @Test
+  public void putsDependentAboveWhenBaseRowHasLineFromBelow() {
+    List<String> useCases =
+        Arrays.asList(
+            "Rent Bike", "Return Bike", "Process Payment", "Report Damage", "Charge Subscription");
+    Map<String, List<String>> actors = new LinkedHashMap<>();
+    actors.put("Rider", Arrays.asList("Rent Bike", "Return Bike"));
+    actors.put("Time", Collections.singletonList("Charge Subscription"));
+    List<String[]> deps =
+        Arrays.asList(
+            new String[] {"Return Bike", "Process Payment"},
+            new String[] {"Charge Subscription", "Process Payment"},
+            new String[] {"Return Bike", "Report Damage"});
+
+    Map<String, Point> p =
+        UseCaseGrid.plan(
+            useCases,
+            actors,
+            new HashMap<>(),
+            deps,
+            new HashSet<>(Collections.singletonList("Process Payment")));
+
+    assertEquals(new Point(0, 1), p.get("Return Bike"));
+    assertEquals(new Point(1, 1), p.get("Process Payment"));
+    assertEquals(new Point(1, 0), p.get("Report Damage"));
+  }
 }
