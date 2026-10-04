@@ -13,12 +13,12 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
 - **Tool Discovery**: Custom `@Tool` annotation + Java reflection (replaces Spring AI)
 - **Port**: 2026 (configurable)
 
-### MCP Tool Services (51 tools total)
+### MCP Tool Services (59 tools total)
 
 | Category | Tools | Count |
 |----------|-------|-------|
-| Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts | 5 |
-| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, generateReport | 10 |
+| Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts, addStereotype, checkLayout, renameElement | 8 |
+| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, generateReport | 11 |
 | Class | create, addClass, addAttribute, addOperation, addAssociation, addGeneralization, addAggregation, addComposition, addDependency, addRealization, addInterface, addPackage, setClassColor, generateReport, setElementBounds, addStereotypeToClasses, removeRelationship, setAssociationProperties, getRelationshipDetails, rerouteConnectors, layoutConnectorLabels, exportDiagramImage | 22 |
 | Project | newProject, saveProject, saveProjectAs, getProjectInfo | 4 |
 | ERD | create, addTable, addColumn, addForeignKey, addTableRelationship, generateDdl, generateReport | 7 |
@@ -94,9 +94,14 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   Actors stay aligned with the average of their use cases: with C1 clarified (lines aim at the
   center), a line VP clips at the name caption still belongs to the actor's fan.
 - **`getRelationshipDetails`** also reports each association end's navigability.
-- **`getDiagramElements`** lists stereotypes (`Actor: Time «time»`) and where an association draws
-  arrowheads (`{arrow at: Payment Provider}`); unknown element types use `getModelType()`
-  (`System: SmartTaxIS`) instead of VP's obfuscated class name (`dgz`), also in getElementCounts.
+- **`removeDiagramElement` dissolves a system boundary**: VP keeps a boundary shape while its
+  `ISystem` exists, so the shapes are moved onto the diagram, the use cases out of the system (to
+  its owner, or top level), each is checked to still exist, and only an empty system is deleted.
+- **`renameElement(diagram, element, newName)`** (any diagram): refuses a name already used on the
+  diagram (tools look elements up by name) and updates a boundary's custom caption too. Verified
+  live on SmartTaxIS: boundary dissolved (14 use cases, 8 actors, 18 links kept) and restored,
+  actor and boundary renamed and back, duplicate name refused, `checkLayout` OK. Re-targeting a
+  relationship was skipped: remove + add loses nothing for use case links.
 - **`getDiagramElements`** lists stereotypes (`Actor: Time «time»`) and where an association draws
   arrowheads (`{arrow at: Payment Provider}`); unknown element types use `getModelType()`
   (`System: SmartTaxIS`) instead of VP's obfuscated class name (`dgz`), also in getElementCounts.

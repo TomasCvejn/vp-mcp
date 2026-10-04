@@ -25,25 +25,29 @@ The plugin includes an embedded MCP server that:
 - Runs on **port 2026** with SSE stream at `/sse` and messages at `/mcp/messages`
 - Provides **tool capabilities** for external MCP clients
 
-#### Available MCP Tools (55 total)
+#### Available MCP Tools (59 total)
 
-##### Diagram Management (6 tools)
+##### Diagram Management (8 tools)
 - **listDiagrams()**: List all diagrams in the project
 - **getDiagramElements(diagramName)**: List elements of a diagram with details
 - **autoLayoutDiagram(diagramName)**: Apply automatic layout to a diagram
-- **removeDiagramElement(diagramName, elementName)**: Remove an element from a diagram
+- **removeDiagramElement(diagramName, elementName)**: Remove an element from a diagram (a system boundary is dissolved, its use cases stay)
+- **renameElement(diagramName, elementName, newName)**: Rename an element (refuses a name already used on the diagram)
 - **getElementCounts(diagramName)**: Count elements by type in a diagram
 - **addStereotype(diagramName, elementName, stereotype)**: Apply a stereotype (e.g. System, Time) to any element
+- **checkLayout(diagramName)**: Geometric check for overlapping shapes, lines through shapes and crossing lines (run after exportDiagramImage)
 
-##### Use Case Diagram (9 tools)
+##### Use Case Diagram (11 tools)
 - **createUseCaseDiagram(diagramName)**: Create new use case diagrams
 - **addActor(actorName, diagramName)**: Add actors to specific diagrams
 - **addUseCase(useCaseName, diagramName)**: Add use cases to diagrams
-- **addRelationship(sourceName, targetName, relationshipType)**: Create Include/Extend/Generalization/Association/DirectedAssociation relationships (DirectedAssociation draws a source→target arrow)
+- **addRelationship(sourceName, targetName, relationshipType)**: Create Include/Extend/Generalization/Association/DirectedAssociation relationships (plain Association for primary actors; DirectedAssociation only use case → secondary actor)
 - **removeUseCaseElement(diagramName, elementName)**: Delete an actor or use case (and its relationships) from the model
 - **removeUseCaseRelationship(diagramName, sourceName, targetName, relationshipType)**: Delete a relationship between two elements from the model
 - **nameExtensionPoint(diagramName, extendingUseCase, baseUseCase, name)**: Name the extension point of an Extend relationship
-- **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary
+- **nameUseCaseRelationship(diagramName, sourceName, targetName, relationshipType, name)**: Name a relationship
+- **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary (reuses an existing one)
+- **layoutUseCaseDiagram(diagramName, systemName)**: House-style layout in one call: use case grid, boundary, actors, lines
 - **generateUseCaseReport(diagramName)**: Generate use case analysis report
 
 ##### Class Diagram (22 tools)

@@ -647,10 +647,87 @@ public abstract class AbstractDiagramMcpTools {
     }
   }
 
+  /**
+   * VP keeps a boundary shape while its ISystem model exists, so the shape cannot be removed on its
+   * own: move the use cases out of the system (model and shapes), then delete the system. On the
+   * EDT.
+   */
+  private String removeSystemBoundary(
+      IDiagramUIModel diagram, IDiagramElement boundary, String elementName) {
+    com.vp.plugin.model.ISystem system = (com.vp.plugin.model.ISystem) boundary.getModelElement();
+    for (com.vp.plugin.diagram.IShapeUIModel child : boundary.toChildArray()) {
+      boundary.removeChild(child);
+      diagram.addDiagramElement(child);
+    }
+    IModelElement owner = system.getParent();
+    IUseCase[] useCases = system.toUseCaseArray();
+    for (IUseCase uc : useCases) {
+      if (owner != null) {
+        owner.addChild(uc);
+      } else {
+        system.removeUseCase(uc); // the system is top level: the use case becomes top level too
+      }
+    }
+    for (IUseCase uc : useCases) {
+      if (requireProject().getModelElementById(uc.getId()) == null) {
+        return "Error: use case '" + uc.getName() + "' disappeared while leaving the boundary";
+      }
+    }
+    // Deleting the system deletes what it still owns, so never delete it while it owns anything.
+    if (system.childCount() > 0) {
+      return "Could not remove boundary '"
+          + elementName
+          + "': its use cases could not be moved out ("
+          + system.childCount()
+          + " still owned)";
+    }
+    system.delete();
+    return "Removed boundary '" + elementName + "'; its use cases stay on the diagram";
+  }
+
+  @Tool(
+      name = "renameElement",
+      description =
+          "Rename an element shown on a diagram (actor, use case, class, table, system"
+              + " boundary, ...). Refuses a name already used on that diagram, because tools find"
+              + " elements by name")
+  public String renameElement(String diagramName, String elementName, String newName) {
+    try {
+      return runOnEdt(
+          () -> {
+            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            if (newName == null || newName.trim().isEmpty()) {
+              return "newName is required";
+            }
+            String name = newName.trim();
+            IDiagramElement de = findDiagramElementByName(diagram, elementName);
+            if (de == null || de.getModelElement() == null) {
+              return "Element not found on diagram: " + elementName;
+            }
+            if (findDiagramElementByName(diagram, name) != null) {
+              return "'" + name + "' is already used on diagram '" + diagramName + "'";
+            }
+            de.getModelElement().setName(name);
+            // A boundary also shows a custom caption (set by addSystemBoundary).
+            if (de instanceof com.vp.plugin.diagram.IShapeUIModel
+                && elementName.equals(((com.vp.plugin.diagram.IShapeUIModel) de).getCustomText())) {
+              ((com.vp.plugin.diagram.IShapeUIModel) de).setCustomText(name);
+            }
+            return "Renamed '" + elementName + "' to '" + name + "'";
+          });
+    } catch (Exception e) {
+      return "Error renaming element: " + e.getMessage();
+    }
+  }
+
   @Tool(
       name = "removeDiagramElement",
       description =
-          "Remove an element (shape or connector) from a diagram by its model element name")
+          "Remove an element (shape or connector) from a diagram by its model element name. A"
+              + " system boundary is dissolved: its use cases stay on the diagram")
   public String removeDiagramElement(String diagramName, String elementName) {
     try {
       return runOnEdt(
@@ -662,6 +739,9 @@ public abstract class AbstractDiagramMcpTools {
             IDiagramElement element = findDiagramElementByName(diagram, elementName);
             if (element == null) {
               return "Element not found on diagram: " + elementName;
+            }
+            if (element.getModelElement() instanceof com.vp.plugin.model.ISystem) {
+              return removeSystemBoundary(diagram, element, elementName);
             }
             // A shape nested in a container (e.g. a use case in a system boundary) is owned by
             // its parent shape, so detach it there first.
