@@ -571,6 +571,62 @@ public abstract class AbstractDiagramMcpTools {
   }
 
   @Tool(
+      name = "checkLayout",
+      description =
+          "Geometric layout check of a diagram: overlapping shapes, shapes straddling a system"
+              + " boundary or package edge, lines running through a shape they do not connect,"
+              + " and crossing lines. Run after exportDiagramImage so connector routes are"
+              + " current. Returns 'OK' or one issue per line")
+  public String checkLayout(String diagramName) {
+    try {
+      return runOnEdt(
+          () -> {
+            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+            if (diagram == null) {
+              return "Diagram not found: " + diagramName;
+            }
+            List<LayoutCheck.Box> boxes = new ArrayList<>();
+            List<LayoutCheck.Line> lines = new ArrayList<>();
+            for (IDiagramElement de : getDiagramElementsList(diagram)) {
+              IModelElement model = de.getModelElement();
+              if (model == null) {
+                continue;
+              }
+              if (de instanceof com.vp.plugin.diagram.IConnectorUIModel) {
+                com.vp.plugin.diagram.IConnectorUIModel c =
+                    (com.vp.plugin.diagram.IConnectorUIModel) de;
+                java.awt.Point[] points = c.getPoints();
+                if (c.getFromShape() == null || c.getToShape() == null || points == null) {
+                  continue;
+                }
+                String from = c.getFromShape().getModelElement().getName();
+                String to = c.getToShape().getModelElement().getName();
+                String name = model.getModelType() + " " + from + " -> " + to;
+                lines.add(new LayoutCheck.Line(name, from, to, points));
+              } else if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
+                boolean container =
+                    model instanceof com.vp.plugin.model.ISystem
+                        || model instanceof com.vp.plugin.model.IPackage;
+                boxes.add(
+                    new LayoutCheck.Box(
+                        model.getName(),
+                        model instanceof IUseCase,
+                        container,
+                        de.getX(),
+                        de.getY(),
+                        de.getWidth(),
+                        de.getHeight()));
+              }
+            }
+            List<String> issues = LayoutCheck.check(boxes, lines);
+            return issues.isEmpty() ? "OK" : String.join("\n", issues);
+          });
+    } catch (Exception e) {
+      return "Error checking layout: " + e.getMessage();
+    }
+  }
+
+  @Tool(
       name = "removeDiagramElement",
       description =
           "Remove an element (shape or connector) from a diagram by its model element name")

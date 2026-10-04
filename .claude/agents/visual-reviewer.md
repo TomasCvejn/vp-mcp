@@ -17,7 +17,11 @@ and any other diagram.
    diagram name and an `exportDiagramImage` MCP tool is available, export a PNG first.
    If you can do neither, stop and say what you are missing.
 2. **Look at it.** `Read` the PNG. Judge it as a human would at normal zoom.
-3. **Check the visual checklist below**, item by item.
+3. **Check the visual checklist below**, item by item. If you were also given the output
+   of the `checkLayout` MCP tool, treat it as ground truth for the first three items
+   (overlaps, crossings, lines through shapes): report each listed issue, and do not
+   report one of those three kinds that it does not list — it measured the geometry,
+   you are estimating pixels. Judge the remaining items from the image as usual.
 
 ## Visual checklist
 
