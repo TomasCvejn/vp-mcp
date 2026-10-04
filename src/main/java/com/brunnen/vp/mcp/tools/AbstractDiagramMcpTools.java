@@ -1,5 +1,6 @@
 package com.brunnen.vp.mcp.tools;
 
+import com.brunnen.vp.mcp.tool.OptionalParam;
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramLayoutEngine;
 import com.brunnen.vp.mcp.util.DiagramUtils;
@@ -345,7 +346,7 @@ public abstract class AbstractDiagramMcpTools {
       description =
           "List all diagrams in the project, optionally filtered by type "
               + "(UseCase, Class, Sequence, ER)")
-  public String listDiagrams(String type) {
+  public String listDiagrams(@OptionalParam String type) {
     try {
       return runOnEdt(
           () -> {
@@ -705,7 +706,7 @@ public abstract class AbstractDiagramMcpTools {
               + " elements by name. elementType (optional, e.g. Actor or UseCase) picks one of"
               + " several elements sharing the name")
   public String renameElement(
-      String diagramName, String elementName, String newName, String elementType) {
+      String diagramName, String elementName, String newName, @OptionalParam String elementType) {
     try {
       return runOnEdt(
           () -> {
@@ -869,7 +870,12 @@ public abstract class AbstractDiagramMcpTools {
           "Move/resize a shape on a diagram. width or height <= 0 keeps the position and fits the"
               + " shape to its content (e.g. after adding attributes)")
   public String setElementBounds(
-      String diagramName, String elementName, int x, int y, int width, int height) {
+      String diagramName,
+      String elementName,
+      int x,
+      int y,
+      @OptionalParam int width,
+      @OptionalParam int height) {
     try {
       return runOnEdt(
           () -> {
@@ -1083,7 +1089,7 @@ public abstract class AbstractDiagramMcpTools {
           "VP File > New Project: close the open project and start a new empty one; save it"
               + " with saveProjectAs. Refuses while the open project has unsaved changes unless"
               + " discardChanges is true")
-  public String newProject(Boolean discardChanges) {
+  public String newProject(@OptionalParam Boolean discardChanges) {
     try {
       return runOnEdt(
           () -> {

@@ -1,5 +1,6 @@
 package com.brunnen.vp.mcp.tools;
 
+import com.brunnen.vp.mcp.tool.OptionalParam;
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
@@ -71,9 +72,9 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
   public String addLifeline(
       String diagramName,
       String lifelineName,
-      String className,
-      String lifelineType,
-      String alias) {
+      @OptionalParam String className,
+      @OptionalParam String lifelineType,
+      @OptionalParam String alias) {
     try {
       return runOnEdt(
           () -> {
@@ -245,7 +246,10 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       name = "addCombinedFragment",
       description = "Add a combined fragment (alt/opt/loop) to a sequence diagram")
   public String addCombinedFragment(
-      String diagramName, String operator, String guard, String coveredLifelines) {
+      String diagramName,
+      String operator,
+      @OptionalParam String guard,
+      @OptionalParam String coveredLifelines) {
     try {
       return runOnEdt(
           () -> {
