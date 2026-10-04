@@ -405,6 +405,88 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   }
 
   @Tool(
+      name = "buildUseCaseDiagram",
+      description =
+          "Create a whole use case diagram in one call from a JSON spec, lay it out by the house"
+              + " conventions inside a boundary named systemName and check the layout. spec:"
+              + " {\"actors\": [names], \"stereotypes\": {name: \"system\"|\"time\"},"
+              + " \"useCases\": [names], \"links\": [[primaryActor, useCase]] (plain line),"
+              + " \"calls\": [[useCase, secondaryActor]] (arrow at the actor),"
+              + " \"includes\": [[base, included]],"
+              + " \"extends\": [[extending, base, extensionPoint?]],"
+              + " \"generalizations\": [[childActor, parentActor]]}. The whole spec is validated"
+              + " first; nothing is created when it has problems")
+  public String buildUseCaseDiagram(String diagramName, String systemName, String spec) {
+    UseCaseSpec s;
+    try {
+      s = UseCaseSpec.parse(spec);
+      boolean exists =
+          runOnEdt(
+              () ->
+                  DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class)
+                      != null);
+      if (exists) {
+        return "Diagram '" + diagramName + "' already exists; pick another name";
+      }
+    } catch (Exception e) {
+      return e.getMessage();
+    }
+    // Build with the single-step tools (their success messages start with Created/Added/Named),
+    // stopping at the first step that does not succeed.
+    List<String> steps = new ArrayList<>();
+    steps.add(createUseCaseDiagram(diagramName));
+    for (String actor : s.actors) {
+      steps.add(addActor(actor, diagramName));
+    }
+    for (String uc : s.useCases) {
+      steps.add(addUseCase(uc, diagramName));
+    }
+    for (java.util.Map.Entry<String, String> st : s.stereotypes.entrySet()) {
+      steps.add(addStereotype(diagramName, st.getKey(), st.getValue()));
+    }
+    for (String[] l : s.links) {
+      steps.add(addRelationship(diagramName, l[0], l[1], "Association"));
+    }
+    for (String[] c : s.calls) {
+      steps.add(addRelationship(diagramName, c[0], c[1], "DirectedAssociation"));
+    }
+    for (String[] i : s.includes) {
+      steps.add(addRelationship(diagramName, i[0], i[1], "Include"));
+    }
+    for (String[] e : s.extendsList) {
+      steps.add(addRelationship(diagramName, e[0], e[1], "Extend"));
+      if (e.length == 3 && !e[2].isEmpty()) {
+        steps.add(nameExtensionPoint(diagramName, e[0], e[1], e[2]));
+      }
+    }
+    for (String[] g : s.generalizations) {
+      steps.add(addRelationship(diagramName, g[0], g[1], "Generalization"));
+    }
+    for (String step : steps) {
+      if (!step.startsWith("Created") && !step.startsWith("Added") && !step.startsWith("Named")) {
+        return "Stopped building '" + diagramName + "' (partly created): " + step;
+      }
+    }
+    String layout = layoutUseCaseDiagram(diagramName, systemName);
+    return "Built '"
+        + diagramName
+        + "': "
+        + s.actors.size()
+        + " actors, "
+        + s.useCases.size()
+        + " use cases, "
+        + (s.links.size()
+            + s.calls.size()
+            + s.includes.size()
+            + s.extendsList.size()
+            + s.generalizations.size())
+        + " relationships\n"
+        + layout
+        + "\ncheckLayout: "
+        + checkLayout(diagramName);
+  }
+
+  @Tool(
       name = "layoutUseCaseDiagram",
       description =
           "Lay out a use case diagram by the house conventions: use cases in a grid (column by"

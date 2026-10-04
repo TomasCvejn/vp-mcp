@@ -13,12 +13,12 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
 - **Tool Discovery**: Custom `@Tool` annotation + Java reflection (replaces Spring AI)
 - **Port**: 2026 (configurable)
 
-### MCP Tool Services (59 tools total)
+### MCP Tool Services (60 tools total)
 
 | Category | Tools | Count |
 |----------|-------|-------|
 | Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts, addStereotype, checkLayout, renameElement, setElementBounds, rerouteConnectors, exportDiagramImage, getRelationshipDetails | 12 |
-| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, generateReport | 11 |
+| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, buildUseCaseDiagram, generateReport | 12 |
 | Class | create, addClass, addAttribute, addOperation, addAssociation, addGeneralization, addAggregation, addComposition, addDependency, addRealization, addInterface, addPackage, setClassColor, generateReport, addStereotypeToClasses, removeRelationship, setAssociationProperties, layoutConnectorLabels | 18 |
 | Project | newProject, saveProject, saveProjectAs, getProjectInfo | 4 |
 | ERD | create, addTable, addColumn, addForeignKey, addTableRelationship, generateDdl, generateReport | 7 |
@@ -107,6 +107,14 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `exportDiagramImage`, `getRelationshipDetails` and the project tools moved out of
   `ClassDiagramMcpTools` (names unchanged; the server registers each tool name once). Only
   class-specific tools remain in `ClassDiagramMcpTools`.
+- **`buildUseCaseDiagram(diagramName, systemName, spec)`**: a whole use case diagram in one call
+  instead of ~45. `spec` is JSON (actors, stereotypes, useCases, links = primary actor -> use
+  case, calls = use case -> secondary actor, includes, extends with optional extension point,
+  generalizations), parsed and validated as a whole by the pure `UseCaseSpec` (`UseCaseSpecTest`):
+  every problem is listed and nothing is created. Then the single-step tools build it,
+  `layoutUseCaseDiagram` lays it out and `checkLayout` is appended. Verified live: a bad spec
+  listed 3 problems and created no diagram; the 16-use-case Wolt diagram was built in one call,
+  `checkLayout` OK, identical to the hand-built one.
 - **Wolt diagram (wolt.vpp) fixes**: actors are created 40x60 (their stick figure;
   `DiagramLayoutEngine.ACTOR_WIDTH`) and `addSystemBoundary` normalizes actor width, so arrows to
   secondary actors no longer stop short (C2); a freshly created boundary gets `resetCaption()`
