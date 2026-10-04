@@ -13,12 +13,12 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
 - **Tool Discovery**: Custom `@Tool` annotation + Java reflection (replaces Spring AI)
 - **Port**: 2026 (configurable)
 
-### MCP Tool Services (60 tools total)
+### MCP Tool Services (61 tools total)
 
 | Category | Tools | Count |
 |----------|-------|-------|
 | Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts, addStereotype, checkLayout, renameElement, setElementBounds, rerouteConnectors, exportDiagramImage, getRelationshipDetails | 12 |
-| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, buildUseCaseDiagram, generateReport | 12 |
+| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, buildUseCaseDiagram, checkUseCaseDiagram, generateReport | 13 |
 | Class | create, addClass, addAttribute, addOperation, addAssociation, addGeneralization, addAggregation, addComposition, addDependency, addRealization, addInterface, addPackage, setClassColor, generateReport, addStereotypeToClasses, removeRelationship, setAssociationProperties, layoutConnectorLabels | 18 |
 | Project | newProject, saveProject, saveProjectAs, getProjectInfo | 4 |
 | ERD | create, addTable, addColumn, addForeignKey, addTableRelationship, generateDdl, generateReport | 7 |
@@ -217,12 +217,8 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `exportDiagramImage` + `checkLayout`, `rerouteConnectors` after manual moves. Verified live: after
   a reconnect Claude Code shows them as the server's instructions.
 - **Spec checks** (`UseCaseSpec`, `UseCaseSpecTest`): a cycle in includes/extends or in
-  generalizations is a problem (nothing is created). `warnings(systemName)` lists catalog
-  mistakes visible in the spec alone, appended to the `buildUseCaseDiagram` result as
-  "Spec warnings" without stopping it: element with no relationship, actor standing for the
-  system (§1.6), Time without «time» (C4), include with one base (§1.11), actor both primary and
-  secondary for one use case, extend without extension point. The skill fixes them in the spec
-  before the review. Verified live: a cycle spec created nothing; a spec with six
+  generalizations is a problem (nothing is created). The spec warnings that followed were
+  replaced by `checkUseCaseDiagram` (below), which checks the built diagram instead. Verified live: a cycle spec created nothing; a spec with six
   planted mistakes was built (`checkLayout` OK) and listed exactly those six warnings.
 - **Generic `diagram-reviewer`**: its hard-coded use case checklist is gone (it had drifted: no
   C4, and it cited §1.10 and §1.14, which `review/usecase.md` does not contain). The agent walks
@@ -242,6 +238,27 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   rows (fitness center: Register Membership, linked to Member and Receptionist, was between
   Member's use cases and Receptionist's line crossed Member's line to Reserve Class; checkLayout
   and both reviewers reported it). Verified live: the same spec rebuilt with `checkLayout` OK.
+- **`checkUseCaseDiagram(diagramName)`**: the checklist items a use case diagram's model
+  answers for sure, so the LLM reviewer stops estimating them from pixels (it had miscounted
+  use cases and rated the same issue nit in one run, warn in the next). Pure `UseCaseCheck`
+  (`UseCaseCheckTest`, in the JaCoCo rule): exact counts; ground truth for SYN1 (inside one
+  boundary), SYN5 (named extension points), BP1/BP2 (one named system), C3 (primary left,
+  secondary right, by arrowheads), C4 (Time has «time»), §1.11 (include with one base); it also
+  reports an arrowhead at a use case or at both ends (§1.5), an actor named System or like the
+  boundary (§1.6) and elements without relationships. `buildUseCaseDiagram` appends it; the
+  skill passes its output to `diagram-reviewer`, which reports its problems and does not
+  contradict it on those ids. SYN1 is decided by geometry (use case shape wholly within the
+  boundary rectangle): use case shapes are not child shapes of the boundary (`addSystemBoundary`
+  only adds them to the `ISystem` model and draws the box around them), and the model owner is
+  wrong for a shared use case. VP gives a new extend an extension point
+  named "ExtensionPoint" (then "ExtensionPoint2", ...), which counts as unnamed for SYN5. VP's
+  `toStereotypeModelArray()` returns null, not an empty array, for an element without
+  stereotypes (the first live run failed on it).
+  Verified live: OK with exact counts on Bike Sharing, City Library and Fitness Center; Lint
+  Test listed exactly its planted problems; SmartTaxIS showed three real §1.11 findings no
+  reviewer had reported; after moving Payment Gateway left and View Statistics out of the box it
+  reported exactly C3 and SYN1, and `diagram-reviewer` took both and its counts from it, adding
+  only what it judged from the picture (the lines left behind by the moves).
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

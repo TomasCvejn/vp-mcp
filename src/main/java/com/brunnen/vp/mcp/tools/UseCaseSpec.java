@@ -133,67 +133,6 @@ final class UseCaseSpec {
     return spec;
   }
 
-  /**
-   * Catalog mistakes visible in the spec alone, worth a look but not stopping the build.
-   *
-   * @param systemName the modelled system (its boundary)
-   */
-  List<String> warnings(String systemName) {
-    List<String> w = new ArrayList<>();
-    Set<String> used = new LinkedHashSet<>();
-    for (List<String[]> rel : java.util.Arrays.asList(links, calls, includes, extendsList)) {
-      for (String[] r : rel) {
-        used.add(r[0]);
-        used.add(r[1]);
-      }
-    }
-    for (String[] g : generalizations) {
-      used.add(g[0]);
-      used.add(g[1]);
-    }
-    for (String uc : useCases) {
-      if (!used.contains(uc)) {
-        w.add("use case '" + uc + "' has no relationship");
-      }
-    }
-    for (String a : actors) {
-      if (!used.contains(a)) {
-        w.add("actor '" + a + "' has no relationship");
-      }
-      if ("System".equalsIgnoreCase(a) || a.equalsIgnoreCase(systemName)) {
-        w.add("actor '" + a + "' stands for the modelled system (§1.6)");
-      }
-      if ("Time".equalsIgnoreCase(a) && !"time".equalsIgnoreCase(stereotypes.get(a))) {
-        w.add("actor '" + a + "' needs the stereotype \"time\" (C4)");
-      }
-    }
-    Map<String, Integer> bases = new LinkedHashMap<>();
-    for (String[] i : includes) {
-      bases.merge(i[1], 1, Integer::sum);
-    }
-    for (Map.Entry<String, Integer> b : bases.entrySet()) {
-      if (b.getValue() == 1) {
-        w.add(
-            "'"
-                + b.getKey()
-                + "' is included by one use case only; put its steps into the base (§1.11)");
-      }
-    }
-    for (String[] l : links) {
-      for (String[] c : calls) {
-        if (l[0].equals(c[1]) && l[1].equals(c[0])) {
-          w.add("actor '" + l[0] + "' is both primary and secondary for '" + l[1] + "'");
-        }
-      }
-    }
-    for (String[] e : extendsList) {
-      if (e.length < 3 || e[2].isEmpty()) {
-        w.add("extend '" + e[0] + "' -> '" + e[1] + "' has no extension point");
-      }
-    }
-    return w;
-  }
-
   /** Report a cycle in {from, to} edges, e.g. A includes B includes A. */
   private static void cycle(String key, List<String[]> edges, List<String> problems) {
     Map<String, List<String>> next = new LinkedHashMap<>();
