@@ -38,4 +38,4 @@ Primary actors sit on the **left** of the system boundary; secondary actors sit 
 An actor that stands for the passing of time (scheduled / periodic triggers, e.g. "Time")
 is drawn with the **«time»** stereotype above its name.
 - Check: does every Time actor show «time»?
-- Fix: add the stereotype (`addActorStereotype(diagram, "Time", "time")`).
+- Fix: add the stereotype (`addStereotype(diagram, "Time", "time")`).
