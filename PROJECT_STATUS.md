@@ -216,6 +216,14 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   guard, a use case diagram is one `buildUseCaseDiagram` (rebuilt with `replace=true`), then
   `exportDiagramImage` + `checkLayout`, `rerouteConnectors` after manual moves. Verified live: after
   a reconnect Claude Code shows them as the server's instructions.
+- **Spec checks** (`UseCaseSpec`, `UseCaseSpecTest`): a cycle in includes/extends or in
+  generalizations is a problem (nothing is created). `warnings(systemName)` lists catalog
+  mistakes visible in the spec alone, appended to the `buildUseCaseDiagram` result as
+  "Spec warnings" without stopping it: element with no relationship, actor standing for the
+  system (§1.6), Time without «time» (C4), include with one base (§1.11), actor both primary and
+  secondary for one use case, extend without extension point. The skill fixes them in the spec
+  before the review. Verified live: a cycle spec created nothing; a spec with six
+  planted mistakes was built (`checkLayout` OK) and listed exactly those six warnings.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 
