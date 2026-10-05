@@ -1,6 +1,7 @@
 package com.brunnen.vp.mcp.tools;
 
 import com.brunnen.vp.mcp.tool.OptionalParam;
+import com.brunnen.vp.mcp.tool.ParamSchema;
 import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramLayoutEngine;
 import com.brunnen.vp.mcp.util.DiagramUtils;
@@ -473,20 +474,18 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   @Tool(
       name = "buildUseCaseDiagram",
       description =
-          "Create a whole use case diagram in one call from a JSON spec, lay it out by the house"
-              + " conventions inside a boundary named systemName and check the layout. spec:"
-              + " {\"actors\": [names], \"stereotypes\": {name: \"system\"|\"time\"},"
-              + " \"useCases\": [names], \"links\": [[primaryActor, useCase]] (plain line),"
-              + " \"calls\": [[useCase, secondaryActor]] (arrow at the actor),"
-              + " \"includes\": [[base, included]],"
-              + " \"extends\": [[extending, base, extensionPoint?]],"
-              + " \"generalizations\": [[childActor, parentActor]]}. The whole spec is validated"
-              + " first; nothing is created when it has problems (also a cycle). The result ends"
+          "Create a whole use case diagram in one call from a spec object (its schema describes"
+              + " each field), lay it out by the house conventions inside a boundary named"
+              + " systemName and check it. The whole spec is validated first; nothing is created"
+              + " when it has problems (also a cycle). The result ends"
               + " with checkLayout and checkUseCaseDiagram. replace=true first deletes an"
               + " existing diagram of that name with its elements (shared ones stay on other"
               + " diagrams), so a corrected spec can be rebuilt")
   public String buildUseCaseDiagram(
-      String diagramName, String systemName, String spec, @OptionalParam boolean replace) {
+      String diagramName,
+      String systemName,
+      @ParamSchema(UseCaseSpec.SCHEMA) com.fasterxml.jackson.databind.JsonNode spec,
+      @OptionalParam boolean replace) {
     UseCaseSpec s;
     try {
       s = UseCaseSpec.parse(spec);

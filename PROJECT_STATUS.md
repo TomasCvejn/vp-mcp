@@ -268,6 +268,13 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   `setImageMargin(Default)` removes or moves it (tried live), so it stays. `deleteUseCaseDiagram`
   exposes the delete
   behind `replace=true` (boundary dissolved, shared elements stay on other diagrams).
+- **Spec as an object**: `buildUseCaseDiagram`'s `spec` is a JSON object, no longer JSON in a
+  string (no escaping). `ToolDefinition` binds a `JsonNode` parameter as is, and
+  `@ParamSchema` (tool package) puts a parameter's full JSON Schema into the input schema, so the
+  client and the model see the spec's structure (pairs, triples, descriptions): `UseCaseSpec.SCHEMA`
+  (a constant, tested to be valid JSON with every spec key). `UseCaseSpec.parse` takes the node. Verified
+  live: the server lists the spec schema; Fitness Center was built from an object spec; over
+  JSON-RPC an object spec was validated and a string spec rejected ("spec must be a JSON object").
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

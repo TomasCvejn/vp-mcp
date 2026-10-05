@@ -49,6 +49,8 @@ public class ToolDefinition {
 
       if (argNode == null || argNode.isNull()) {
         args[i] = getDefaultValue(paramType);
+      } else if (paramType == com.fasterxml.jackson.databind.JsonNode.class) {
+        args[i] = argNode;
       } else if (paramType == String.class) {
         args[i] = argNode.asText();
       } else if (paramType == int.class || paramType == Integer.class) {
@@ -122,7 +124,17 @@ public class ToolDefinition {
       String paramName = param.getName();
       ObjectNode propSchema = mapper.createObjectNode();
       Class<?> type = param.getType();
-      if (type == String.class) {
+      ParamSchema given = param.getAnnotation(ParamSchema.class);
+      if (given != null) {
+        try {
+          propSchema = (ObjectNode) mapper.readTree(given.value());
+        } catch (java.io.IOException e) {
+          throw new IllegalStateException(
+              "Bad @ParamSchema on " + method.getName() + "." + paramName, e);
+        }
+      } else if (type == com.fasterxml.jackson.databind.JsonNode.class) {
+        propSchema.put("type", "object");
+      } else if (type == String.class) {
         propSchema.put("type", "string");
       } else if (type == int.class
           || type == Integer.class

@@ -20,6 +20,24 @@ public class ToolDefinitionTest {
     }
   }
 
+  /** A tool with a structured parameter. */
+  public static class Structured {
+    @Tool(name = "count", description = "test tool")
+    public String count(
+        @ParamSchema("{\"type\": \"object\", \"required\": [\"items\"]}") JsonNode spec) {
+      return spec.get("items").size() + " items";
+    }
+  }
+
+  @Test
+  public void structuredParameterGetsItsSchemaAndArrivesAsJson() throws Exception {
+    ToolDefinition count = ToolDefinition.scanTools(new Structured(), MAPPER).get(0);
+    assertEquals(
+        "{\"type\":\"object\",\"required\":[\"items\"]}",
+        count.getInputSchema().at("/properties/spec").toString());
+    assertEquals("2 items", count.execute(MAPPER.readTree("{\"spec\": {\"items\": [1, 2]}}")));
+  }
+
   private static ToolDefinition greet() {
     List<ToolDefinition> tools = ToolDefinition.scanTools(new Sample(), MAPPER);
     assertEquals(1, tools.size());
