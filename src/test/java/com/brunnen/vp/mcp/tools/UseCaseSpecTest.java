@@ -5,15 +5,26 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Arrays;
 import org.junit.Test;
 
 /** Tests for the buildUseCaseDiagram spec parser. */
 public class UseCaseSpecTest {
 
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+
+  private static UseCaseSpec parse(String json) {
+    try {
+      return UseCaseSpec.parse(json == null ? null : MAPPER.readTree(json));
+    } catch (java.io.IOException e) {
+      throw new AssertionError(e);
+    }
+  }
+
   private static String problems(String json) {
     try {
-      UseCaseSpec.parse(json);
+      parse(json);
     } catch (IllegalArgumentException e) {
       return e.getMessage();
     }
@@ -24,7 +35,7 @@ public class UseCaseSpecTest {
   @Test
   public void parsesWholeDiagram() {
     UseCaseSpec s =
-        UseCaseSpec.parse(
+        parse(
             "{\"actors\": [\"Customer\", \"Payment Gateway\", \"Premium\"],"
                 + " \"stereotypes\": {\"Payment Gateway\": \"system\"},"
                 + " \"useCases\": [\"Place Order\", \"Pay for Order\", \"Apply Promo Code\"],"
@@ -70,7 +81,6 @@ public class UseCaseSpecTest {
   @Test
   public void rejectsNonObjectsAndBrokenJson() {
     assertTrue(problems("[1, 2]").contains("must be a JSON object"));
-    assertTrue(problems("{\"actors\": [").contains("not valid JSON"));
     assertTrue(problems(null).contains("must be a JSON object"));
     assertTrue(problems("{\"actors\": [\" \"]}").contains("actors: empty name"));
   }
@@ -86,5 +96,29 @@ public class UseCaseSpecTest {
     // X includes Y (X -> Y) and X extends Y (base Y -> X) close a loop.
     assertTrue(msg, msg.contains("includes/extends: cycle X -> Y -> X"));
     assertTrue(msg, msg.contains("generalizations: cycle A -> B -> A"));
+  }
+
+  /** A broken schema would only fail when Visual Paradigm loads the plugin. */
+  @Test
+  public void schemaIsValidJsonListingEverySpecKey() throws Exception {
+    com.fasterxml.jackson.databind.JsonNode schema = MAPPER.readTree(UseCaseSpec.SCHEMA);
+    assertEquals("[\"actors\",\"useCases\"]", schema.get("required").toString());
+    assertEquals(
+        Arrays.asList(
+            "actors",
+            "stereotypes",
+            "useCases",
+            "links",
+            "calls",
+            "includes",
+            "extends",
+            "generalizations"),
+        names(schema.get("properties").fieldNames()));
+  }
+
+  private static java.util.List<String> names(java.util.Iterator<String> it) {
+    java.util.List<String> out = new java.util.ArrayList<>();
+    it.forEachRemaining(out::add);
+    return out;
   }
 }

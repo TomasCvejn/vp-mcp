@@ -1,8 +1,6 @@
 package com.brunnen.vp.mcp.tools;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -38,20 +36,39 @@ final class UseCaseSpec {
   final List<String[]> extendsList = new ArrayList<>();
   final List<String[]> generalizations = new ArrayList<>();
 
+  /** JSON Schema of the spec (buildUseCaseDiagram's input schema); a constant for @ParamSchema. */
+  static final String SCHEMA =
+      "{\"type\": \"object\", \"additionalProperties\": false, "
+          + "\"required\": [\"actors\", \"useCases\"], "
+          + "\"properties\": {\"actors\": {\"type\": \"array\", "
+          + "\"items\": {\"type\": \"string\"}},\"stereotypes\": {\"type\": \"object\", "
+          + "\"description\": \"actor -> stereotype: system (another system) or time "
+          + "(the Time actor)\", "
+          + "\"additionalProperties\": {\"type\": \"string\"}},\"useCases\": {\"type\": \"array\", "
+          + "\"description\": \"in reading order: each actor's rows follow it\", "
+          + "\"items\": {\"type\": \"string\"}},\"links\": {\"type\": \"array\", "
+          + "\"description\": \"[primaryActor, useCase]: plain line\", "
+          + "\"items\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 2, "
+          + "\"maxItems\": 2}},\"calls\": {\"type\": \"array\", \"description\": \"[useCase, "
+          + "secondaryActor]: arrow at the actor\", \"items\": {\"type\": \"array\", "
+          + "\"items\": {\"type\": \"string\"}, \"minItems\": 2, "
+          + "\"maxItems\": 2}},\"includes\": {\"type\": \"array\", \"description\": \"[base, "
+          + "included]\", \"items\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, "
+          + "\"minItems\": 2, \"maxItems\": 2}},\"extends\": {\"type\": \"array\", "
+          + "\"description\": \"[extending, base, extensionPoint]\", "
+          + "\"items\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 2, "
+          + "\"maxItems\": 3}},\"generalizations\": {\"type\": \"array\", "
+          + "\"description\": \"[childActor, parentActor]\", \"items\": {\"type\": \"array\", "
+          + "\"items\": {\"type\": \"string\"}, \"minItems\": 2, \"maxItems\": 2}}}}";
+
   private UseCaseSpec() {}
 
   /**
-   * Parse and validate a spec.
+   * Validate a spec.
    *
    * @throws IllegalArgumentException listing every problem found
    */
-  static UseCaseSpec parse(String json) {
-    JsonNode root;
-    try {
-      root = new ObjectMapper().readTree(json == null ? "" : json);
-    } catch (IOException e) {
-      throw new IllegalArgumentException("spec is not valid JSON: " + e.getMessage(), e);
-    }
+  static UseCaseSpec parse(JsonNode root) {
     if (root == null || !root.isObject()) {
       throw new IllegalArgumentException("spec must be a JSON object");
     }
