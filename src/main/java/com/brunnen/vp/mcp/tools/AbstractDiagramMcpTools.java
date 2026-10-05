@@ -107,6 +107,18 @@ public abstract class AbstractDiagramMcpTools {
   }
 
   /**
+   * The diagram named {@code name} of {@code type}. Tools catch the exception and report its
+   * message ("Diagram not found: ...").
+   */
+  protected static <T extends IDiagramUIModel> T requireDiagram(String name, Class<T> type) {
+    IDiagramUIModel diagram = DiagramUtils.findDiagramByName(name, type);
+    if (diagram == null) {
+      throw new IllegalArgumentException("Diagram not found: " + name);
+    }
+    return type.cast(diagram);
+  }
+
+  /**
    * Add a model element to a diagram. Sets the name on the model element, creates the diagram
    * element, and sets the visual caption text. Positions using VP's built-in layout.
    *
@@ -404,10 +416,7 @@ public abstract class AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
 
             List<IDiagramElement> elements = getDiagramElementsList(diagram);
             if (elements.isEmpty()) {
@@ -594,16 +603,13 @@ public abstract class AbstractDiagramMcpTools {
       name = "autoLayoutDiagram",
       description =
           "Apply structured layout to a diagram. MUST be called AFTER adding all elements. "
-              + "UC: actors left, use cases right. Class: boundary/DAO/entity layers. "
-              + "ERD: compact organic.")
+              + "Class: boundary/DAO/entity layers. ERD: compact organic. Use case diagrams:"
+              + " use layoutUseCaseDiagram (house style); here only VP's default layout.")
   public String autoLayoutDiagram(String diagramName) {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             layoutDiagram(diagram);
             return "Auto-layout applied to diagram: " + diagramName;
           });
@@ -651,10 +657,7 @@ public abstract class AbstractDiagramMcpTools {
       }
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             List<LayoutCheck.Box> boxes = new ArrayList<>();
             List<LayoutCheck.Line> lines = new ArrayList<>();
             for (IDiagramElement de : getDiagramElementsList(diagram)) {
@@ -757,10 +760,7 @@ public abstract class AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             if (newName == null || newName.trim().isEmpty()) {
               return "newName is required";
             }
@@ -814,10 +814,7 @@ public abstract class AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             IDiagramElement element = findElement(diagram, elementName);
             if (element.getModelElement() instanceof com.vp.plugin.model.ISystem) {
               return removeSystemBoundary(diagram, element, elementName);
@@ -844,45 +841,6 @@ public abstract class AbstractDiagramMcpTools {
   }
 
   @Tool(
-      name = "getElementCounts",
-      description =
-          "Get a summary of element types on a diagram (actors, use cases, classes, tables, etc.)")
-  public String getElementCounts(String diagramName) {
-    try {
-      return runOnEdt(
-          () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-
-            java.util.Map<String, Integer> counts = new HashMap<>();
-            Iterator<?> iter = diagram.diagramElementIterator();
-            while (iter.hasNext()) {
-              Object obj = iter.next();
-              if (obj instanceof IDiagramElement) {
-                IDiagramElement de = (IDiagramElement) obj;
-                IModelElement model = de.getModelElement();
-                if (model != null) {
-                  String typeName = getSemanticTypeName(model);
-                  counts.merge(typeName, 1, Integer::sum);
-                }
-              }
-            }
-
-            StringBuilder sb = new StringBuilder();
-            sb.append("Element counts for '").append(diagramName).append("':\n");
-            counts.forEach(
-                (type, count) ->
-                    sb.append("  ").append(type).append(": ").append(count).append("\n"));
-            return sb.toString();
-          });
-    } catch (Exception e) {
-      return "Error getting element counts: " + e.getMessage();
-    }
-  }
-
-  @Tool(
       name = "addStereotype",
       description =
           "Apply a stereotype (e.g. System, Time) to an element (actor, use case, class, "
@@ -891,10 +849,7 @@ public abstract class AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             if (stereotype == null || stereotype.trim().isEmpty()) {
               return "Stereotype is required";
             }
@@ -926,10 +881,7 @@ public abstract class AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             IDiagramElement de = findElement(diagram, elementName);
             if (width <= 0 || height <= 0) {
               if (de instanceof IShapeUIModel) {
@@ -967,10 +919,7 @@ public abstract class AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             ObjectNode root = JSON.createObjectNode();
             root.put("diagram", diagramName);
             ArrayNode classes = root.putArray("classes");
@@ -1242,10 +1191,7 @@ public abstract class AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             int count = 0;
             for (IDiagramElement de : getDiagramElementsList(diagram)) {
               if (de instanceof IConnectorUIModel) {

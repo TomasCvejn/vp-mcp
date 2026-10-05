@@ -13,15 +13,15 @@ Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server us
 - **Tool Discovery**: Custom `@Tool` annotation + Java reflection (replaces Spring AI)
 - **Port**: 2026 (configurable)
 
-### MCP Tool Services (62 tools total)
+### MCP Tool Services (58 tools total)
 
 | Category | Tools | Count |
 |----------|-------|-------|
-| Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, getElementCounts, addStereotype, checkLayout, renameElement, setElementBounds, rerouteConnectors, exportDiagramImage, getRelationshipDetails | 12 |
-| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, buildUseCaseDiagram, checkUseCaseDiagram, deleteUseCaseDiagram, generateReport | 14 |
-| Class | create, addClass, addAttribute, addOperation, addAssociation, addGeneralization, addAggregation, addComposition, addDependency, addRealization, addInterface, addPackage, setClassColor, generateReport, addStereotypeToClasses, removeRelationship, setAssociationProperties, layoutConnectorLabels | 18 |
+| Management | listDiagrams, getDiagramElements, autoLayoutDiagram, removeDiagramElement, addStereotype, checkLayout, renameElement, setElementBounds, rerouteConnectors, exportDiagramImage, getRelationshipDetails | 11 |
+| Use Case | create, addActor, addUseCase, addRelationship, removeUseCaseElement, removeUseCaseRelationship, nameExtensionPoint, nameUseCaseRelationship, addSystemBoundary, layoutUseCaseDiagram, buildUseCaseDiagram, checkUseCaseDiagram, deleteUseCaseDiagram | 13 |
+| Class | create, addClass, addAttribute, addOperation, addAssociation, addGeneralization, addAggregation, addComposition, addDependency, addRealization, addInterface, addPackage, setClassColor, addStereotypeToClasses, removeRelationship, setAssociationProperties, layoutConnectorLabels | 17 |
 | Project | newProject, saveProject, saveProjectAs, getProjectInfo | 4 |
-| ERD | create, addTable, addColumn, addForeignKey, addTableRelationship, generateDdl, generateReport | 7 |
+| ERD | create, addTable, addColumn, addForeignKey, addTableRelationship, generateDdl | 6 |
 | Sequence | create, addLifeline, addActivation, addMessage, addReturnMessage, addCombinedFragment, generateReport | 7 |
 
 ### Reference-style rendering (matches the course's Visual Paradigm samples)
@@ -275,6 +275,18 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   (a constant, tested to be valid JSON with every spec key). `UseCaseSpec.parse` takes the node. Verified
   live: the server lists the spec schema; Fitness Center was built from an object spec; over
   JSON-RPC an object spec was validated and a string spec rejected ("spec must be a JSON object").
+- **Ponytail audit cuts (2026-10-05)**: removed `generateUseCaseReport`, `generateClassReport`,
+  `generateErdReport` (they listed what `getDiagramElements`, `getRelationshipDetails`,
+  `checkUseCaseDiagram` and `generateDdl` show) and `getElementCounts`; `generateSequenceReport`
+  stays (message order, self/async, fragment kinds are only there). 46 copies of "find the
+  diagram or return 'Diagram not found'" became `requireDiagram(name, type)`, whose exception the
+  tools' catch reports. The message endpoint no longer sends CORS headers (clients are local
+  processes; with `Access-Control-Allow-Origin: *` any web page could drive the tools).
+  `autoLayoutDiagram` on a use case diagram uses VP's default layout (the hierarchical option was
+  superseded by `layoutUseCaseDiagram`); dead `ElementZone.RIGHT` removed. Kept: Undertow, as
+  VP's bundled JRE (11.0.16, 41 modules) has no `jdk.httpserver`. -614 lines. Verified live:
+  58 tools listed, OPTIONS answered 405 and POST carries no CORS header, a missing diagram reports
+  "Diagram not found: ...", Bike Sharing rebuilt with both checks OK.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

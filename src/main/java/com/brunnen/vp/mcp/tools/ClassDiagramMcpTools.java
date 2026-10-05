@@ -76,12 +76,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             // Resolve what to extend/implement before creating anything, so a wrong or
             // ambiguous name fails the call instead of leaving a half-built class behind.
             IDiagramElement parentDe =
@@ -188,11 +183,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
             IClass cls;
             if (diagramName != null && !diagramName.trim().isEmpty()) {
               IClassDiagramUIModel diagram =
-                  (IClassDiagramUIModel)
-                      DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-              if (diagram == null) {
-                return "Diagram not found: " + diagramName;
-              }
+                  requireDiagram(diagramName, IClassDiagramUIModel.class);
               cls = findModelElement(className, IClass.class, diagram);
             } else {
               cls = findModelElement(className, IClass.class, null);
@@ -297,12 +288,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
             IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
             IClass source = (IClass) fromElement.getModelElement();
@@ -340,12 +326,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
             IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
             IClass source = (IClass) fromElement.getModelElement();
@@ -376,12 +357,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
             IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
             IClass source = (IClass) fromElement.getModelElement();
@@ -419,12 +395,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
             IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
             IClass source = (IClass) fromElement.getModelElement();
@@ -457,12 +428,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
             IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
             IClass source = (IClass) fromElement.getModelElement();
@@ -487,12 +453,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             IDiagramElement fromElement = findElement(diagram, fromClass, IClass.class);
             IDiagramElement toElement = findElement(diagram, toClass, IClass.class);
             IClass source = (IClass) fromElement.getModelElement();
@@ -515,12 +476,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
 
             IClass iface = getModelElementFactory().createClass();
             iface.addStereotype("Interface");
@@ -539,12 +495,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
 
             IPackage pkg = getModelElementFactory().createPackage();
             pkg.setName(packageName);
@@ -582,12 +533,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
 
             IDiagramElement de = findElement(diagram, className, IClass.class);
             if (!(de instanceof IShapeUIModel)) {
@@ -606,196 +552,6 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     }
   }
 
-  @Tool(name = "generateClassReport", description = "Generate a class diagram analysis report")
-  public String generateClassReport(String diagramName) {
-    try {
-      return runOnEdt(
-          () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-
-            List<IClass> classes = getClassesInDiagram(diagram);
-
-            // Build model -> caption name map
-            java.util.Map<IModelElement, String> nameMap = new java.util.LinkedHashMap<>();
-            Iterator<?> deIter = diagram.diagramElementIterator();
-            while (deIter.hasNext()) {
-              Object obj = deIter.next();
-              if (obj instanceof IDiagramElement) {
-                IDiagramElement de = (IDiagramElement) obj;
-                IModelElement model = de.getModelElement();
-                if (model instanceof IClass) {
-                  String displayName = model.getName();
-                  if (de instanceof IShapeUIModel) {
-                    String caption = ((IShapeUIModel) de).getCustomText();
-                    if (caption != null && !caption.isEmpty()) {
-                      displayName = caption;
-                    }
-                  }
-                  nameMap.put(model, displayName);
-                }
-              }
-            }
-
-            StringBuilder report = new StringBuilder();
-            report.append("CLASS DIAGRAM REPORT: ").append(diagramName).append("\n");
-            report.append("=====================================\n");
-
-            // Classes with attributes and operations
-            report.append("Classes (").append(classes.size()).append("):\n");
-            for (IClass cls : classes) {
-              String className = nameMap.getOrDefault(cls, cls.getName());
-              // Check for Interface stereotype
-              boolean isInterface = false;
-              Iterator<?> stereotypes = cls.stereotypeIterator();
-              while (stereotypes.hasNext()) {
-                if ("Interface".equals(stereotypes.next())) {
-                  isInterface = true;
-                  break;
-                }
-              }
-              if (isInterface) {
-                report.append("  - Interface: ").append(className).append("\n");
-              } else {
-                report.append("  - ").append(className).append("\n");
-              }
-
-              // Attributes
-              List<String> attrs = new ArrayList<>();
-              Iterator<?> attrIter = cls.attributeIterator();
-              while (attrIter.hasNext()) {
-                Object attrObj = attrIter.next();
-                if (attrObj instanceof IAttribute) {
-                  IAttribute attr = (IAttribute) attrObj;
-                  String vis = attr.getVisibility();
-                  String attrStr =
-                      (vis != null ? vis : "")
-                          + attr.getName()
-                          + (attr.getType() != null ? ":" + attr.getType() : "");
-                  attrs.add(attrStr);
-                }
-              }
-              if (!attrs.isEmpty()) {
-                report.append("    Attributes: ").append(String.join(", ", attrs)).append("\n");
-              }
-
-              // Operations
-              List<String> ops = new ArrayList<>();
-              Iterator<?> opIter = cls.operationIterator();
-              while (opIter.hasNext()) {
-                Object opObj = opIter.next();
-                if (opObj instanceof IOperation) {
-                  IOperation op = (IOperation) opObj;
-                  StringBuilder opStr = new StringBuilder();
-                  String opVis = op.getVisibility();
-                  if (opVis != null) {
-                    opStr.append(opVis);
-                  }
-                  opStr.append(op.getName()).append("(");
-                  List<String> params = new ArrayList<>();
-                  Iterator<?> paramIter = op.parameterIterator();
-                  while (paramIter.hasNext()) {
-                    Object paramObj = paramIter.next();
-                    if (paramObj instanceof IParameter) {
-                      IParameter p = (IParameter) paramObj;
-                      String paramStr = p.getName();
-                      if (p.getType() != null) {
-                        paramStr += ":" + p.getType();
-                      }
-                      params.add(paramStr);
-                    }
-                  }
-                  opStr.append(String.join(", ", params)).append(")");
-                  if (op.getReturnType() != null) {
-                    opStr.append(":").append(op.getReturnType());
-                  }
-                  ops.add(opStr.toString());
-                }
-              }
-              if (!ops.isEmpty()) {
-                report.append("    Operations: ").append(String.join(", ", ops)).append("\n");
-              }
-            }
-
-            // Relationships
-            List<String> relationships = new ArrayList<>();
-            Iterator<?> elemIter = diagram.diagramElementIterator();
-            while (elemIter.hasNext()) {
-              Object obj = elemIter.next();
-              if (obj instanceof IDiagramElement) {
-                IModelElement model = ((IDiagramElement) obj).getModelElement();
-                if (model instanceof IGeneralization) {
-                  IGeneralization gen = (IGeneralization) model;
-                  String from =
-                      gen.getFrom() != null
-                          ? nameMap.getOrDefault(gen.getFrom(), gen.getFrom().getName())
-                          : "?";
-                  String to =
-                      gen.getTo() != null
-                          ? nameMap.getOrDefault(gen.getTo(), gen.getTo().getName())
-                          : "?";
-                  relationships.add("Generalization: " + from + " extends " + to);
-                } else if (model instanceof IAssociation) {
-                  IAssociation assoc = (IAssociation) model;
-                  String from =
-                      assoc.getFrom() != null
-                          ? nameMap.getOrDefault(assoc.getFrom(), assoc.getFrom().getName())
-                          : "?";
-                  String to =
-                      assoc.getTo() != null
-                          ? nameMap.getOrDefault(assoc.getTo(), assoc.getTo().getName())
-                          : "?";
-                  IAssociationEnd toEnd = (IAssociationEnd) assoc.getToEnd();
-                  String mult =
-                      toEnd != null && toEnd.getMultiplicity() != null
-                          ? " [" + toEnd.getMultiplicity() + "]"
-                          : "";
-                  String relName =
-                      assoc.getName() != null ? " (name: " + assoc.getName() + ")" : "";
-                  relationships.add("Association: " + from + " -> " + to + mult + relName);
-                } else if (model instanceof IDependency) {
-                  IDependency dep = (IDependency) model;
-                  String from =
-                      dep.getFrom() != null
-                          ? nameMap.getOrDefault(dep.getFrom(), dep.getFrom().getName())
-                          : "?";
-                  String to =
-                      dep.getTo() != null
-                          ? nameMap.getOrDefault(dep.getTo(), dep.getTo().getName())
-                          : "?";
-                  relationships.add("Dependency: " + from + " -> " + to);
-                } else if (model instanceof IRealization) {
-                  IRealization real = (IRealization) model;
-                  String from =
-                      real.getFrom() != null
-                          ? nameMap.getOrDefault(real.getFrom(), real.getFrom().getName())
-                          : "?";
-                  String to =
-                      real.getTo() != null
-                          ? nameMap.getOrDefault(real.getTo(), real.getTo().getName())
-                          : "?";
-                  relationships.add("Realization: " + from + " implements " + to);
-                }
-              }
-            }
-            if (!relationships.isEmpty()) {
-              report.append("Relationships (").append(relationships.size()).append("):\n");
-              for (String rel : relationships) {
-                report.append("  - ").append(rel).append("\n");
-              }
-            }
-
-            return report.toString();
-          });
-    } catch (Exception e) {
-      return "Error generating report: " + e.getMessage();
-    }
-  }
-
   @Tool(
       name = "addStereotypeToClasses",
       description =
@@ -805,12 +561,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             if (stereotype == null || stereotype.trim().isEmpty()) {
               return "Stereotype is required";
             }
@@ -866,12 +617,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             List<IRelationship> matches =
                 findRelationships(diagram, fromClass, toClass, relationshipType);
             if (matches.isEmpty()) {
@@ -919,12 +665,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IClassDiagramUIModel diagram =
-                (IClassDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IClassDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IClassDiagramUIModel diagram = requireDiagram(diagramName, IClassDiagramUIModel.class);
             List<IRelationship> matches =
                 findRelationships(diagram, fromClass, toClass, "Association");
             if (matches.isEmpty()) {
@@ -987,10 +728,7 @@ public class ClassDiagramMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             boolean relative = "relative".equalsIgnoreCase(coordinateMode);
             List<IAssociationUIModel> conns = new ArrayList<>();
             for (IDiagramElement de : getDiagramElementsList(diagram)) {

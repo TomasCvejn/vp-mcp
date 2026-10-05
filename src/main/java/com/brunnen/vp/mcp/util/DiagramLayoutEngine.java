@@ -20,7 +20,6 @@ public final class DiagramLayoutEngine {
   public enum ElementZone {
     LEFT,
     CENTER,
-    RIGHT,
     TOP,
     MIDDLE,
     BOTTOM
@@ -96,10 +95,6 @@ public final class DiagramLayoutEngine {
         baseX = 50;
         baseY = 50 + (indexInZone * ZONE_SPACING_Y);
         break;
-      case RIGHT:
-        baseX = 50 + (2 * ZONE_SPACING_X);
-        baseY = 50 + (indexInZone * ZONE_SPACING_Y);
-        break;
       case TOP:
         baseX = 50 + (indexInZone * ZONE_SPACING_X);
         baseY = 50;
@@ -140,9 +135,8 @@ public final class DiagramLayoutEngine {
     }
     String type = diagram.getType();
 
-    if (IDiagramTypeConstants.DIAGRAM_TYPE_USE_CASE_DIAGRAM.equals(type)) {
-      applyUseCaseLayout(dm, diagram);
-    } else if (IDiagramTypeConstants.DIAGRAM_TYPE_CLASS_DIAGRAM.equals(type)) {
+    // Use case diagrams: layoutUseCaseDiagram (house style); here VP's default layout.
+    if (IDiagramTypeConstants.DIAGRAM_TYPE_CLASS_DIAGRAM.equals(type)) {
       applyClassLayout(dm, diagram);
     } else if (IDiagramTypeConstants.DIAGRAM_TYPE_INTERACTION_DIAGRAM.equals(type)) {
       applySequenceLayout();
@@ -151,16 +145,6 @@ public final class DiagramLayoutEngine {
     } else {
       dm.autoLayout(diagram);
     }
-  }
-
-  private static void applyUseCaseLayout(DiagramManager dm, IDiagramUIModel diagram) {
-    LayoutOption$Hierarchical opt = dm.createHierarchicalLayoutOption();
-    opt.setOrientation(LayoutOption$Orientation.LeftToRight);
-    opt.setMinimumLayerDistance(100);
-    opt.setMinimumShapeDistance(60);
-    opt.setShapePlacement(LayoutOption$ShapePlacement.Tree);
-    opt.setConnectorStyle(LayoutOption$ConnectorStyle.Polyline);
-    dm.openAndLayoutDiagram(diagram, opt);
   }
 
   private static void applyClassLayout(DiagramManager dm, IDiagramUIModel diagram) {
