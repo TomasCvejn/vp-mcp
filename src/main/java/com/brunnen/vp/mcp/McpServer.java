@@ -156,27 +156,12 @@ public class McpServer {
   // --- Message Handler ---
 
   private void handleMessage(HttpServerExchange exchange) {
-    // CORS preflight
-    if (exchange.getRequestMethod().equals(Methods.OPTIONS)) {
-      exchange.getResponseHeaders().put(new HttpString("Access-Control-Allow-Origin"), "*");
-      exchange
-          .getResponseHeaders()
-          .put(new HttpString("Access-Control-Allow-Methods"), "POST, OPTIONS");
-      exchange
-          .getResponseHeaders()
-          .put(new HttpString("Access-Control-Allow-Headers"), "Content-Type");
-      exchange.setStatusCode(204);
-      exchange.endExchange();
-      return;
-    }
-
+    // No CORS headers: clients are local processes, and a web page must not drive the tools.
     if (!exchange.getRequestMethod().equals(Methods.POST)) {
       exchange.setStatusCode(405);
       exchange.endExchange();
       return;
     }
-
-    exchange.getResponseHeaders().put(new HttpString("Access-Control-Allow-Origin"), "*");
 
     // Extract sessionId from query
     String sid = null;

@@ -33,7 +33,6 @@ The plugin includes an embedded MCP server that:
 - **autoLayoutDiagram(diagramName)**: Apply automatic layout to a diagram
 - **removeDiagramElement(diagramName, elementName)**: Remove an element from a diagram (a system boundary is dissolved, its use cases stay)
 - **renameElement(diagramName, elementName, newName, elementType)**: Rename an element (refuses a name already used on the diagram; optional elementType, e.g. Actor, picks one of several same-named elements)
-- **getElementCounts(diagramName)**: Count elements by type in a diagram
 - **addStereotype(diagramName, elementName, stereotype)**: Apply a stereotype (e.g. System, Time) to any element
 - **checkLayout(diagramName)**: Geometric check for overlapping shapes, lines through shapes, actor name captions colliding with shapes or lines, and crossing lines (renders the diagram first, so routes are current)
 - **setElementBounds(diagramName, elementName, x, y, width, height)**: Set element position and size
@@ -55,7 +54,6 @@ The plugin includes an embedded MCP server that:
 - **buildUseCaseDiagram(diagramName, systemName, spec, replace)**: Create, lay out and check a whole use case diagram from one JSON spec (actors, stereotypes, useCases, links, calls, includes, extends, generalizations); the spec is validated first and nothing is created when it has problems (also a cycle); the result ends with checkLayout and checkUseCaseDiagram; `replace=true` rebuilds an existing diagram from a corrected spec
 - **deleteUseCaseDiagram(diagramName)**: Delete a use case diagram with its elements; elements shown on other diagrams stay there
 - **checkUseCaseDiagram(diagramName)**: Checklist items the model answers for sure (use cases inside one named boundary, named extension points, primary actors left and secondary right, «time» on Time, arrowheads only at secondary actors, includes with one base, unused elements) plus exact counts; ground truth for the diagram reviewer
-- **generateUseCaseReport(diagramName)**: Generate use case analysis report
 
 ##### Class Diagram (18 tools)
 - **createClassDiagram(diagramName)**: Create new class diagrams
@@ -75,7 +73,6 @@ The plugin includes an embedded MCP server that:
 - **removeRelationship(diagramName, fromClass, toClass)**: Remove a relationship model element
 - **setAssociationProperties(...)**: Edit association/aggregation/composition ends and roles
 - **layoutConnectorLabels(diagramName)**: Position multiplicity and association-name labels
-- **generateClassReport(diagramName)**: Generate class diagram analysis report
 
 ##### Project (4 tools)
 - **newProject(discardChanges)**: Create a new, empty project (refuses to drop unsaved changes unless `discardChanges` is true)
@@ -90,7 +87,6 @@ The plugin includes an embedded MCP server that:
 - **addForeignKey(diagramName, fromTable, toTable, fromColumn, toColumn, relationshipName)**: Add FK relationships
 - **addTableRelationship(diagramName, fromTable, toTable, type, fromMultiplicity, toMultiplicity)**: Add identifying/non-identifying relationships
 - **generateDdl(diagramName)**: Generate CREATE TABLE DDL statements
-- **generateErdReport(diagramName)**: Generate ERD analysis report
 
 ##### Sequence Diagram (7 tools)
 - **createSequenceDiagram(diagramName)**: Create new sequence diagrams

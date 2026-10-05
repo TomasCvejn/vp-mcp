@@ -102,12 +102,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       IModelElement existing,
       java.util.function.Supplier<IModelElement> create,
       String label) {
-    IUseCaseDiagramUIModel diagram =
-        (IUseCaseDiagramUIModel)
-            DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-    if (diagram == null) {
-      return "Diagram not found: " + diagramName;
-    }
+    IUseCaseDiagramUIModel diagram = requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
     if (existing != null && shownOn(existing, diagram) != null) {
       return "The " + label + " '" + name + "' is already on diagram '" + diagramName + "'";
     }
@@ -151,11 +146,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
 
             IDiagramElement fromElement =
                 findElement(diagram, sourceName, IUseCase.class, IActor.class);
@@ -238,11 +229,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
             // Only an element shown on this diagram: never a same-named one elsewhere.
             return removeFrom(
                 diagram, findElement(diagram, elementName, IUseCase.class, IActor.class));
@@ -291,11 +278,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
             List<IRelationship> matches =
                 findUseCaseRelationships(diagram, sourceName, targetName, relationshipType);
             if (matches.isEmpty()) {
@@ -336,11 +319,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
             if (name == null || name.trim().isEmpty()) {
               return "Name is required";
             }
@@ -386,11 +365,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
             List<IRelationship> matches =
                 findUseCaseRelationships(diagram, sourceName, targetName, relationshipType);
             if (matches.isEmpty()) {
@@ -583,7 +558,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             return r.startsWith("Removed") ? "Deleted diagram '" + diagramName + "'" : r;
           });
     } catch (Exception e) {
-      return "Error deleting diagram: " + e;
+      return "Error deleting diagram: " + e.getMessage();
     }
   }
 
@@ -627,11 +602,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
             UseCaseCheck c = new UseCaseCheck();
             for (IDiagramElement de : diagram.toDiagramElementArray()) {
               IModelElement m = de.getModelElement();
@@ -694,7 +665,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                 + ")";
           });
     } catch (Exception e) {
-      return "Error checking use case diagram: " + e;
+      return "Error checking use case diagram: " + e.getMessage();
     }
   }
 
@@ -877,17 +848,14 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       description =
           "Wrap all use cases of a use case diagram in a labeled system boundary rectangle "
               + "and move actors outside it: primary (initiating) actors left, secondary "
-              + "(system-called) actors right. Call AFTER autoLayoutDiagram.")
+              + "(system-called) actors right. layoutUseCaseDiagram already does this after"
+              + " placing the use cases")
   public String addSystemBoundary(String diagramName, String systemName) {
     try {
       return runOnEdt(
           () -> {
             IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
 
             // Collect use case shapes (for the bounding box) and actor shapes (to place outside).
             List<IUseCase> useCases = new ArrayList<>();
@@ -1118,91 +1086,5 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       cursor = y + heights[i] + minGap;
     }
     return ys;
-  }
-
-  @Tool(
-      name = "generateUseCaseReport",
-      description = "Generate a use case analysis report for a diagram")
-  public String generateReport(String diagramName) {
-    try {
-      return runOnEdt(
-          () -> {
-            IUseCaseDiagramUIModel diagram =
-                (IUseCaseDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-
-            List<String> actorNames = new ArrayList<>();
-            List<String> useCaseNames = new ArrayList<>();
-            List<String> relationshipDetails = new ArrayList<>();
-            java.util.Map<IModelElement, String> nameMap = new java.util.LinkedHashMap<>();
-
-            Iterator<?> iter = diagram.diagramElementIterator();
-            while (iter.hasNext()) {
-              Object obj = iter.next();
-              if (obj instanceof IDiagramElement) {
-                IDiagramElement de = (IDiagramElement) obj;
-                IModelElement model = de.getModelElement();
-                String displayName = model.getName();
-                if (de instanceof IShapeUIModel) {
-                  String caption = ((IShapeUIModel) de).getCustomText();
-                  if (caption != null && !caption.isEmpty()) {
-                    displayName = caption;
-                  }
-                }
-                nameMap.put(model, displayName);
-                if (model instanceof IActor) {
-                  actorNames.add(displayName);
-                } else if (model instanceof IUseCase) {
-                  useCaseNames.add(displayName);
-                } else if (model instanceof IRelationship) {
-                  String relType;
-                  if (model instanceof IInclude) {
-                    relType = "Include";
-                  } else if (model instanceof IExtend) {
-                    relType = "Extend";
-                  } else if (model instanceof IGeneralization) {
-                    relType = "Generalization";
-                  } else if (model instanceof IAssociation) {
-                    relType = "Association";
-                  } else {
-                    relType = "Relationship";
-                  }
-                  IRelationship rel = (IRelationship) model;
-                  String from =
-                      rel.getFrom() != null
-                          ? nameMap.getOrDefault(rel.getFrom(), rel.getFrom().getName())
-                          : "?";
-                  String to =
-                      rel.getTo() != null
-                          ? nameMap.getOrDefault(rel.getTo(), rel.getTo().getName())
-                          : "?";
-                  relationshipDetails.add(relType + ": " + from + " -> " + to);
-                }
-              }
-            }
-
-            StringBuilder report = new StringBuilder();
-            report.append("USE CASE REPORT: ").append(diagramName).append("\n");
-            report.append("================================\n");
-            report.append("Actors (").append(actorNames.size()).append("):\n");
-            for (String name : actorNames) {
-              report.append("  - ").append(name).append("\n");
-            }
-            report.append("Use Cases (").append(useCaseNames.size()).append("):\n");
-            for (String name : useCaseNames) {
-              report.append("  - ").append(name).append("\n");
-            }
-            report.append("Relationships (").append(relationshipDetails.size()).append("):\n");
-            for (String rel : relationshipDetails) {
-              report.append("  - ").append(rel).append("\n");
-            }
-            return report.toString();
-          });
-    } catch (Exception e) {
-      return "Error generating report: " + e.getMessage();
-    }
   }
 }

@@ -2,7 +2,6 @@ package com.brunnen.vp.mcp.tools;
 
 import com.brunnen.vp.mcp.tool.OptionalParam;
 import com.brunnen.vp.mcp.tool.Tool;
-import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramTypeConstants;
@@ -79,11 +78,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IInteractionDiagramUIModel diagram =
-                (IInteractionDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IInteractionDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IInteractionDiagramUIModel.class);
 
             String type = lifelineType != null ? lifelineType.trim() : "";
             String classifierName =
@@ -165,11 +160,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IInteractionDiagramUIModel diagram =
-                (IInteractionDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IInteractionDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IInteractionDiagramUIModel.class);
 
             IInteractionLifeLine lifeline = findLifelineByName(diagram, lifelineName);
 
@@ -199,11 +190,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IInteractionDiagramUIModel diagram =
-                (IInteractionDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IInteractionDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IInteractionDiagramUIModel.class);
 
             boolean async =
                 "asynch".equalsIgnoreCase(messageType) || "async".equalsIgnoreCase(messageType);
@@ -228,11 +215,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IInteractionDiagramUIModel diagram =
-                (IInteractionDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IInteractionDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IInteractionDiagramUIModel.class);
 
             return createMessageConnector(
                 diagram, fromLifeline, toLifeline, messageName, sequenceNumber, false, true);
@@ -254,11 +237,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IInteractionDiagramUIModel diagram =
-                (IInteractionDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IInteractionDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IInteractionDiagramUIModel.class);
 
             ICombinedFragment fragment = getModelElementFactory().createCombinedFragment();
 
@@ -320,11 +299,7 @@ public class SequenceDiagramMcpTools extends AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IInteractionDiagramUIModel diagram =
-                (IInteractionDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IInteractionDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+                requireDiagram(diagramName, IInteractionDiagramUIModel.class);
 
             List<IInteractionLifeLine> lifelines = getAllLifelines(diagram);
             List<IMessage> messages = getAllMessages(diagram);

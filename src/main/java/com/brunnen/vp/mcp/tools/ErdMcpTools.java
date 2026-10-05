@@ -2,7 +2,6 @@ package com.brunnen.vp.mcp.tools;
 
 import com.brunnen.vp.mcp.tool.OptionalParam;
 import com.brunnen.vp.mcp.tool.Tool;
-import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramTypeConstants;
@@ -43,12 +42,7 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram =
-                (IDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
 
             IDBTable table = getModelElementFactory().createDBTable();
             addToDiagram(diagram, table, tableName);
@@ -111,12 +105,7 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram =
-                (IDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             IDiagramElement fromElement = findElement(diagram, fromTable, IDBTable.class);
             IDiagramElement toElement = findElement(diagram, toTable, IDBTable.class);
             IDBTable source = (IDBTable) fromElement.getModelElement();
@@ -162,12 +151,7 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram =
-                (IDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
             IDiagramElement fromElement = findElement(diagram, fromTable, IDBTable.class);
             IDiagramElement toElement = findElement(diagram, toTable, IDBTable.class);
             IDBTable source = (IDBTable) fromElement.getModelElement();
@@ -203,12 +187,7 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
     try {
       return runOnEdt(
           () -> {
-            IDiagramUIModel diagram =
-                (IDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
+            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
 
             List<IDBTable> tables = getTablesInDiagram(diagram);
             if (tables.isEmpty()) {
@@ -223,105 +202,6 @@ public class ErdMcpTools extends AbstractDiagramMcpTools {
           });
     } catch (Exception e) {
       return "Error generating DDL: " + e.getMessage();
-    }
-  }
-
-  @Tool(name = "generateErdReport", description = "Generate an ERD analysis report")
-  public String generateErdReport(String diagramName) {
-    try {
-      return runOnEdt(
-          () -> {
-            IDiagramUIModel diagram =
-                (IDiagramUIModel)
-                    DiagramUtils.findDiagramByName(diagramName, IDiagramUIModel.class);
-            if (diagram == null) {
-              return "Diagram not found: " + diagramName;
-            }
-
-            List<IDBTable> tables = getTablesInDiagram(diagram);
-
-            // Build table -> user name map from diagram captions
-            java.util.Map<IDBTable, String> tableNames = new java.util.LinkedHashMap<>();
-            Iterator<?> deIter = diagram.diagramElementIterator();
-            while (deIter.hasNext()) {
-              Object obj = deIter.next();
-              if (obj instanceof IDiagramElement) {
-                IDiagramElement de = (IDiagramElement) obj;
-                IModelElement model = de.getModelElement();
-                if (model instanceof IDBTable) {
-                  String displayName = model.getName();
-                  if (de instanceof com.vp.plugin.diagram.IShapeUIModel) {
-                    String caption = ((com.vp.plugin.diagram.IShapeUIModel) de).getCustomText();
-                    if (caption != null && !caption.isEmpty()) {
-                      displayName = caption;
-                    }
-                  }
-                  tableNames.put((IDBTable) model, displayName);
-                }
-              }
-            }
-
-            StringBuilder report = new StringBuilder();
-            report.append("ERD REPORT: ").append(diagramName).append("\n");
-            report.append("================================\n");
-
-            // Tables with columns
-            report.append("Tables (").append(tables.size()).append("):\n");
-            for (IDBTable table : tables) {
-              String tableName = tableNames.getOrDefault(table, table.getName());
-              List<String> cols = new ArrayList<>();
-              Iterator<?> colIter = table.dBColumnIterator();
-              while (colIter.hasNext()) {
-                Object colObj = colIter.next();
-                if (colObj instanceof IDBColumn) {
-                  IDBColumn col = (IDBColumn) colObj;
-                  StringBuilder colStr = new StringBuilder();
-                  colStr.append(col.getName());
-                  if (col.getTypeInText() != null) {
-                    colStr.append(" ").append(col.getTypeInText());
-                  }
-                  if (col.isPrimaryKey()) {
-                    colStr.append(" PK");
-                  } else if (!col.isNullable()) {
-                    colStr.append(" NOT NULL");
-                  }
-                  cols.add(colStr.toString());
-                }
-              }
-              report.append("  - ").append(tableName);
-              report.append(" (").append(cols.size()).append(" columns)\n");
-              for (String col : cols) {
-                report.append("    ").append(col).append("\n");
-              }
-            }
-
-            // Foreign Keys
-            List<String> fks = new ArrayList<>();
-            Iterator<?> elemIter = diagram.diagramElementIterator();
-            while (elemIter.hasNext()) {
-              Object obj = elemIter.next();
-              if (obj instanceof IDiagramElement) {
-                IModelElement model = ((IDiagramElement) obj).getModelElement();
-                if (model instanceof IDBForeignKey) {
-                  IDBForeignKey fk = (IDBForeignKey) model;
-                  String from = fk.getFrom() != null ? fk.getFrom().getName() : "?";
-                  String to = fk.getTo() != null ? fk.getTo().getName() : "?";
-                  String fkName = fk.getName() != null ? fk.getName() : from + "_" + to;
-                  fks.add(fkName + ": " + from + " -> " + to);
-                }
-              }
-            }
-            if (!fks.isEmpty()) {
-              report.append("Foreign Keys (").append(fks.size()).append("):\n");
-              for (String fk : fks) {
-                report.append("  - ").append(fk).append("\n");
-              }
-            }
-
-            return report.toString();
-          });
-    } catch (Exception e) {
-      return "Error generating report: " + e.getMessage();
     }
   }
 
