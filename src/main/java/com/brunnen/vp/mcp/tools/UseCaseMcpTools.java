@@ -688,20 +688,26 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   /** {@link #layoutUseCaseDiagram} with rows in {@code order}, or by name when it is null. */
   private String layout(String diagramName, String systemName, List<String> order) {
     try {
-      String placed =
+      UseCaseLayout.Input input =
           runOnEdt(
               () -> {
                 IUseCaseDiagramUIModel diagram =
                     (IUseCaseDiagramUIModel)
                         DiagramUtils.findDiagramByName(diagramName, IUseCaseDiagramUIModel.class);
-                if (diagram == null) {
-                  return null;
-                }
-                return placeUseCasesOnGrid(diagram, order);
+                return diagram == null ? null : layoutInput(diagram, order);
               });
-      if (placed == null) {
+      if (input == null) {
         return "Diagram not found: " + diagramName;
       }
+      // Up to about a second on a large diagram: planned here, not on VP's UI thread.
+      java.util.Map<String, java.awt.Point> cells = UseCaseLayout.plan(input);
+      String placed =
+          runOnEdt(
+              () ->
+                  placeUseCases(
+                      requireDiagram(diagramName, IUseCaseDiagramUIModel.class),
+                      cells,
+                      input.extended));
       String boundary = addSystemBoundary(diagramName, systemName);
       runOnEdt(
           () -> {
@@ -722,19 +728,6 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     }
   }
 
-  // Grid geometry: a 160x60 use case cell, columns 380 px and rows 90 px apart.
-  private static final int GRID_X = 360;
-  private static final int GRID_Y = 100;
-  private static final int COLUMN_STEP = 380;
-  private static final int CAPTION_LINE = 15;
-  private static final int ROW_STEP = 90; // 30 px between use cases keeps tall diagrams compact
-  private static final int CELL_W = 160;
-  private static final int CELL_H = 60;
-  // A base use case with its extension points compartment; 80 px still leaves 20 px to the
-  // neighbouring rows.
-  private static final int EXTENDED_W = 200;
-  private static final int EXTENDED_H = 80;
-
   /**
    * Put each «include»/«extend» label beside the middle of its own line, on the side away from the
    * other lines, so it cannot be read as another line's label. On the EDT, after rendering (routes
@@ -747,6 +740,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         connectors.add((IConnectorUIModel) de);
       }
     }
+    // Shapes and actor names, plus each label once placed, so labels keep off all of them.
+    List<LayoutCheck.Box> obstacles = layoutBoxes(diagram);
     for (IConnectorUIModel c : connectors) {
       IModelElement model = c.getModelElement();
       ICaptionUIModel cap = c.getCaptionUIModel();
@@ -755,13 +750,16 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       }
       List<java.awt.geom.Line2D> others = new ArrayList<>();
       for (IConnectorUIModel o : connectors) {
-        if (!o.getId().equals(c.getId())) {
-          others.add(segment(o));
+        java.awt.Point[] p = o.getPoints();
+        for (int k = 0; !o.getId().equals(c.getId()) && k + 1 < p.length; k++) {
+          others.add(new java.awt.geom.Line2D.Double(p[k], p[k + 1]));
         }
       }
       java.awt.Point spot =
-          LayoutCheck.labelSpot(segment(c), others, cap.getWidth(), cap.getHeight());
+          LayoutCheck.labelSpot(segment(c), others, obstacles, cap.getWidth(), cap.getHeight());
       cap.setBounds(spot.x, spot.y, cap.getWidth(), cap.getHeight());
+      obstacles.add(
+          LayoutCheck.Box.label(c.getId(), spot.x, spot.y, cap.getWidth(), cap.getHeight()));
     }
   }
 
@@ -771,15 +769,29 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     return new java.awt.geom.Line2D.Double(p[0], p[p.length - 1]);
   }
 
-  /** Reads the diagram into {@link UseCaseGrid}, moves every use case to its cell. On the EDT. */
-  private String placeUseCasesOnGrid(IUseCaseDiagramUIModel diagram, List<String> order) {
+  /**
+   * The use case is the base of an extend anywhere in the model: a shared use case shows the
+   * extension points of extends on other diagrams too. VP stores an extend from = base.
+   */
+  private static boolean isExtended(IModelElement useCase) {
+    com.vp.plugin.model.ISimpleRelationship[] rels = useCase.toFromRelationshipArray();
+    for (com.vp.plugin.model.ISimpleRelationship r :
+        rels != null ? rels : new com.vp.plugin.model.ISimpleRelationship[0]) { // null if none
+      if (r instanceof IExtend) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** What {@link UseCaseLayout} plans the diagram from. On the EDT. */
+  private UseCaseLayout.Input layoutInput(IUseCaseDiagramUIModel diagram, List<String> order) {
     List<IDiagramElement> elements = getDiagramElementsList(diagram);
     java.util.Map<String, IDiagramElement> ucShapes = new java.util.LinkedHashMap<>();
     List<IModelElement> actors = new ArrayList<>();
     List<IAssociation> associations = new ArrayList<>();
     List<String[]> deps = new ArrayList<>();
     java.util.Map<String, String> actorParent = new java.util.HashMap<>();
-    java.util.Set<String> extended = new java.util.HashSet<>(); // bases with extension points
     for (IDiagramElement de : elements) {
       IModelElement m = de.getModelElement();
       if (m instanceof IUseCase) {
@@ -792,9 +804,6 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         // Both are stored from = base use case, to = included / extending use case.
         IRelationship r = (IRelationship) m;
         deps.add(new String[] {r.getFrom().getName(), r.getTo().getName()});
-        if (m instanceof IExtend) {
-          extended.add(r.getFrom().getName());
-        }
       } else if (m instanceof IGeneralization) {
         IRelationship r = (IRelationship) m; // from = parent, to = child
         actorParent.put(r.getTo().getName(), r.getFrom().getName());
@@ -805,9 +814,9 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       java.util.Collections.sort(rows); // VP's element order changes between sessions
     }
     java.util.Map<String, List<String>> actorUseCases = new java.util.LinkedHashMap<>();
-    java.util.Set<String> secondaryLinked = new java.util.HashSet<>();
+    java.util.Map<String, List<String>> secondaryUseCases = new java.util.LinkedHashMap<>();
+    java.util.Set<String> stereotyped = new java.util.HashSet<>();
     for (IModelElement actor : actors) {
-      boolean secondary = isSecondary(actor, associations);
       List<String> linked = new ArrayList<>();
       for (IAssociation a : associations) {
         IModelElement other = otherEnd(a, actor);
@@ -815,29 +824,40 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
           linked.add(other.getName());
         }
       }
-      if (secondary) {
-        secondaryLinked.addAll(linked);
-      } else {
-        actorUseCases.put(actor.getName(), linked);
+      (isSecondary(actor, associations) ? secondaryUseCases : actorUseCases)
+          .put(actor.getName(), linked);
+      if (actor.stereotypeCount() > 0) {
+        stereotyped.add(actor.getName());
       }
     }
-    java.util.Map<String, java.awt.Point> cells =
-        UseCaseGrid.plan(rows, actorUseCases, actorParent, deps, secondaryLinked);
+    java.util.Set<String> extended = new java.util.HashSet<>();
+    for (IDiagramElement de : ucShapes.values()) {
+      if (isExtended(de.getModelElement())) {
+        extended.add(de.getModelElement().getName());
+      }
+    }
+    return new UseCaseLayout.Input(
+        rows, actorUseCases, secondaryUseCases, actorParent, deps, extended, stereotyped);
+  }
+
+  /** Moves every use case to its planned cell. On the EDT. */
+  private String placeUseCases(
+      IUseCaseDiagramUIModel diagram,
+      java.util.Map<String, java.awt.Point> cells,
+      java.util.Set<String> extended) {
+    java.util.Map<String, IDiagramElement> ucShapes = new java.util.HashMap<>();
+    for (IDiagramElement de : getDiagramElementsList(diagram)) {
+      if (de.getModelElement() instanceof IUseCase) {
+        ucShapes.put(de.getModelElement().getName(), de);
+      }
+    }
     for (java.util.Map.Entry<String, java.awt.Point> e : cells.entrySet()) {
       IDiagramElement de = ucShapes.get(e.getKey());
-      int w = de.getWidth();
-      int h = de.getHeight();
-      if (extended.contains(e.getKey())) {
-        // Name, "extension points" and the point: VP's fitted size left the text cramped.
-        w = Math.max(w, EXTENDED_W);
-        h = Math.max(h, EXTENDED_H);
-      }
-      // Center in the cell, so bigger ellipses (extension points) stay on the row/column axis.
-      de.setBounds(
-          GRID_X + e.getValue().x * COLUMN_STEP + (CELL_W - w) / 2,
-          GRID_Y + e.getValue().y * ROW_STEP + (CELL_H - h) / 2,
-          w,
-          h);
+      // A base use case gets room for its extension points compartment (VP's fitted size left
+      // the text cramped); every use case is centered in its cell.
+      java.awt.geom.Rectangle2D r =
+          UseCaseLayout.useCaseBounds(e.getValue(), extended.contains(e.getKey()));
+      de.setBounds((int) r.getX(), (int) r.getY(), (int) r.getWidth(), (int) r.getHeight());
       de.resetCaption();
     }
     return "Placed " + cells.size() + " use case(s) on a grid";
@@ -863,6 +883,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             List<IDiagramElement> actorDes = new ArrayList<>();
             List<IAssociation> associations = new ArrayList<>();
             List<IDiagramElement> systemDes = new ArrayList<>();
+            java.util.Map<String, String> parentOf =
+                new java.util.HashMap<>(); // child -> parent id
             int minX = Integer.MAX_VALUE;
             int minY = Integer.MAX_VALUE;
             int maxX = Integer.MIN_VALUE;
@@ -886,6 +908,9 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                   associations.add((IAssociation) model);
                 } else if (model instanceof ISystem) {
                   systemDes.add(de);
+                } else if (model instanceof IGeneralization) {
+                  IRelationship r = (IRelationship) model; // from = parent, to = child
+                  parentOf.put(r.getTo().getId(), r.getFrom().getId());
                 }
               }
             }
@@ -916,7 +941,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               }
             }
 
-            int pad = 40;
+            int pad = UseCaseLayout.PAD;
             if (sysDe == null) {
               sysDe = getDiagramManager().createDiagramElement(diagram, system);
             }
@@ -935,7 +960,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             // apart.
             int boxLeft = minX - pad;
             int boxRight = maxX + pad;
-            int gap = 70;
+            int gap = UseCaseLayout.ACTOR_GAP;
             List<ActorSlot> leftSlots = new ArrayList<>();
             List<ActorSlot> rightSlots = new ArrayList<>();
             for (IDiagramElement actorDe : actorDes) {
@@ -957,8 +982,8 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                       : sum / count - actorDe.getHeight() / 2;
               (secondary ? rightSlots : leftSlots).add(new ActorSlot(actorDe, desiredY));
             }
-            placeActorColumn(leftSlots, boxLeft - gap, true);
-            placeActorColumn(rightSlots, boxRight + gap, false);
+            placeActorColumn(leftSlots, boxLeft - gap, true, parentOf);
+            placeActorColumn(rightSlots, boxRight + gap, false, parentOf);
 
             // Moving the actors leaves their association connectors anchored at the old positions,
             // so the arrows no longer touch the actor. Re-center every association connector (in a
@@ -1043,9 +1068,14 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
    * @param edgeX the column's inner edge (right edge of the shape when leftSide, else the left
    *     edge)
    * @param leftSide true for the primary-actor column left of the box, false for the right column
+   * @param parentOf generalization child actor id -> parent actor id
    */
-  private static void placeActorColumn(List<ActorSlot> slots, int edgeX, boolean leftSide) {
-    slots.sort((p, q) -> Integer.compare(p.desiredY, q.desiredY));
+  private static void placeActorColumn(
+      List<ActorSlot> slots, int edgeX, boolean leftSide, java.util.Map<String, String> parentOf) {
+    // By desired Y, then by name, exactly like UseCaseLayout predicts the column.
+    slots.sort(
+        java.util.Comparator.<ActorSlot>comparingInt(p -> p.desiredY)
+            .thenComparing(p -> p.de.getModelElement().getName()));
     int[] desired = new int[slots.size()];
     int[] heights = new int[slots.size()];
     for (int i = 0; i < slots.size(); i++) {
@@ -1053,38 +1083,35 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       // The name caption hangs below the figure; a stereotype adds a second caption line.
       IModelElement actor = slots.get(i).de.getModelElement();
       int captionLines = actor != null && actor.stereotypeCount() > 0 ? 2 : 1;
-      heights[i] = slots.get(i).de.getHeight() + (captionLines - 1) * CAPTION_LINE;
+      heights[i] = slots.get(i).de.getHeight() + (captionLines - 1) * UseCaseLayout.CAPTION_LINE;
     }
     // A 30 px gap keeps plain actors (60 tall) one row (90) apart level with their use cases;
     // an actor with a two-line caption pushes the next one down by a caption line.
-    int[] ys = stackYs(desired, heights, 30);
+    int[] ys = UseCaseLayout.stackYs(desired, heights, UseCaseLayout.STACK_GAP);
+    int[] parent = new int[slots.size()];
+    for (int i = 0; i < slots.size(); i++) {
+      parent[i] = -1;
+      IModelElement actor = slots.get(i).de.getModelElement();
+      String p = actor == null ? null : parentOf.get(actor.getId());
+      for (int j = 0; p != null && j < slots.size(); j++) {
+        IModelElement other = slots.get(j).de.getModelElement();
+        if (other != null && p.equals(other.getId())) {
+          parent[i] = j;
+        }
+      }
+    }
+    // Only the left column holds generalization trees; there is no room right of the right one.
+    int[] dx =
+        leftSide
+            ? UseCaseLayout.staggerX(
+                ys, heights, parent, UseCaseLayout.CAPTION_HALF, UseCaseLayout.STAGGER)
+            : new int[slots.size()];
     for (int i = 0; i < slots.size(); i++) {
       IDiagramElement de = slots.get(i).de;
       // The stick figure is ~40 px wide; a wider box makes arrows stop short of it (C2).
       int w = DiagramLayoutEngine.ACTOR_WIDTH;
-      de.setBounds(leftSide ? edgeX - w : edgeX, ys[i], w, de.getHeight());
+      de.setBounds((leftSide ? edgeX - w : edgeX) + dx[i], ys[i], w, de.getHeight());
       de.resetCaption(); // keep the actor name under the moved figure
     }
-  }
-
-  /**
-   * Non-overlapping Y positions for a column: each element sits at its desired Y, or just below the
-   * previous element (its bottom plus {@code minGap}) if that would overlap. Expects inputs sorted
-   * by desired Y. Pure function, unit-tested.
-   *
-   * @param desiredY each element's preferred top Y
-   * @param heights each element's height
-   * @param minGap minimum vertical gap between stacked elements
-   * @return the resolved top Y of each element
-   */
-  static int[] stackYs(int[] desiredY, int[] heights, int minGap) {
-    int[] ys = new int[desiredY.length];
-    int cursor = Integer.MIN_VALUE;
-    for (int i = 0; i < desiredY.length; i++) {
-      int y = Math.max(desiredY[i], cursor);
-      ys[i] = y;
-      cursor = y + heights[i] + minGap;
-    }
-    return ys;
   }
 }

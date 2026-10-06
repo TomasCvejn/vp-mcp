@@ -287,6 +287,132 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   VP's bundled JRE (11.0.16, 41 modules) has no `jdk.httpserver`. -614 lines. Verified live:
   58 tools listed, OPTIONS answered 405 and POST carries no CORS header, a missing diagram reports
   "Diagram not found: ...", Bike Sharing rebuilt with both checks OK.
+- **`UseCaseGrid`**: a dependent with several bases goes to their average row instead of the
+  first base's row (bike sharing: Process Payment, included by Return Bike and Charge
+  Subscription far below, sat beside Return Bike with a 450 px diagonal and an empty right half;
+  a repeated reviewer nit). Verified live: Process Payment now sits midway with two short
+  includes, Report Damage moved into Return Bike's row (horizontal extend), both checks OK.
+  Three bases (rows 1, 5, 6) put the included use case in row 4 (tested, and live). A base use
+  case is enlarged when it is the base of an extend anywhere in the model
+  (`toFromRelationshipArray()`, null if none; the extension point is the extend's, not a child
+  of the use case), not only on this diagram: a shared use case also shows the points of extends
+  on other diagrams (Process Book Return, shared with City Library, overflowed 160x60).
+  **Line routing (measured live)**: without a connection point type VP runs a use case line
+  along the line between the facing corners of the two bounding boxes (or horizontally through
+  the middle of a vertical overlap), clipped by the ellipses. So every line from below-left of a
+  use case passed its bottom-left corner: includes from Process Book Return and Charge Yearly
+  Membership Fee crossed there, 20 px before their arrowheads (and the Librarian line met the
+  include on Process Book Return's top edge). `centerConnector` now gives use cases
+  `CONNECTION_POINT_TYPE_CENTER`, like actors: lines run center to center, clipped at the real
+  ellipse outline, and lines into one use case meet only inside it. Verified live on Three
+  Bases, Bike Sharing, City Library, Fitness Center (`checkLayout` OK, images checked).
+  VP ignores explicit ends: `setToShapeXDiff/YDiff` with `setUseToShapeCenter(false)` (diffs
+  read back 0), `setUseToShapeCenter(false)` alone, `CONNECTION_POINT_TYPE_ROUNDTHESHAPE`.
+- **Actor placement and bent lines** (found by the stricter checkLayout on a new Clinic diagram):
+  two generalization children stacked under their parent had the farther one's line run through
+  the nearer one; `addSystemBoundary` now moves such a child left (80 px, then 160 px) until its
+  line to the parent is clear (pure `staggerX`, `UseCaseLayoutTest`). A secondary actor stays at
+  the average height of its use cases (user's choice); a line to it stays straight unless it
+  would run through another shape, then it runs level from its use case and bends once
+  (`bendSecondaryLines`, pure `LayoutCheck.secondaryBend`; VP keeps middle points, unlike
+  explicit ends). Bends are tried from just outside the boundary leftwards so the last segment
+  misses every shape and passes above the actor's name caption: bent just outside the boundary,
+  Submit Insurance Claim's line climbed steeply into the «system» caption (diagram-reviewer
+  warn). Allowed by `review/usecase-conventions.md` (C2). Verified live: Clinic `checkLayout`
+  OK (was 4 issues), only Submit Insurance Claim's line bends (at x 780, under Request Prior
+  Authorization) and ends on the figure; diagram-reviewer: C1/C2 pass, visual-reviewer PASS.
+  Hotel, Bike Sharing, Fitness Center, City Library, Three Bases rebuilt OK with byte-identical
+  images (no bend needed); SmartTaxIS OK.
+- **Labels in checkLayout**: Hotel's Book Room -> Process Payment «include» label sat on Add
+  Breakfast, yet checkLayout said OK (it did not know labels), so the skill would have skipped
+  the visual reviewer. checkLayout now treats «include»/«extend» labels as boxes (`Box.label`):
+  a label on a shape, a caption or another label, or a foreign line through it, is reported
+  (its own line is not). `labelSpot` tries spots beside the middle, then 40 %, 60 %, 30 %, ...
+  of the line, both sides, at least 4 px off every shape, caption and earlier label and off
+  every line (shared `layoutBoxes`), and takes the first whose own line is nearer by 12 px than
+  any other (the reviewer read labels between two lines as the other line's), else the best
+  such margin. A pure "best score" pushed labels to the line ends, onto shapes (checkLayout
+  caught it live). Checked offline on six dumped diagrams, then live: all seven diagrams OK. A
+  horizontal label beside a sloped line still has its center ~25 px off the line (its corner
+  ~4 px); `setConnectorLabelOrientation` (follow the line's angle) would fix that but is untried. Verified live: Hotel's label now sits clear right of
+  Add Breakfast; all seven diagrams (Hotel, Clinic, Bike Sharing, Fitness Center, City Library,
+  Three Bases, SmartTaxIS) pass checkLayout with labels; only Hotel's image changed.
+- **Layout optimizer** (`UseCaseLayout`, pure, `UseCaseLayoutTest`, in the JaCoCo rule): on
+  larger diagrams (E-shop 24 use cases / 11 actors, University 20 / 10 with a parent of three
+  children) the grid rules fought each other: lines from far-apart bases cut through use cases,
+  lines to secondary actors crossed. With lines drawn center to center the drawing is
+  predictable, so `UseCaseLayout` models it (use case cells, actor columns with the same
+  `stackYs`/`staggerX`, now moved there, estimated name captions) and scores lines through
+  shapes (10), through actor names (6) and crossings (4) with fast analytic geometry.
+  `plan` starts from `UseCaseGrid` (which now takes an explicit actor order) and greedily moves
+  a primary actor's rows elsewhere in the order or a dependent use case to another free cell of
+  its column or the next, while the score drops; a layout scoring 0 stays as the rules made it.
+  Offline on the specs: E-shop 92 -> 28, University 112 -> 28, Clinic 10 -> 0 (no bend needed
+  any more), Hotel/Bike/Fitness/City Library/Three Bases unchanged at 0; up to ~1 s, so the plan
+  is computed on the MCP thread and only reading/placing runs on VP's EDT. Actor columns sort
+  by desired Y then name in both model and placement. Bends to secondary actors now also avoid
+  other actors' (estimated) names. An unrelated actor standing between a generalization child and
+  its parent also scores (6): without it the optimizer put University's Exchange Student at the
+  top and its parent Student at the bottom (fewer crossings, a line across the whole column).
+  Keeping families together as a hard rule instead lost E-shop's best move (92 -> 64). A bend to
+  a secondary actor that finds no clear spot is dropped (the forced one ran through Fraud
+  Detection Service in E-shop). First live run: University 22 -> 7 issues (exactly the model's
+  prediction), E-shop 17 -> 10 (7 predicted plus the forced bend), Clinic OK.
+  Moves also swap two use cases of one column and try a dependent up to two columns right.
+  Second live run (after the fixes): Airline (new: 20 use cases, 11 actors, five secondary
+  actors) 1 line through a shape + 6 crossings, E-shop 7 crossings, University 7 crossings,
+  each matching the model's prediction; Hotel, Clinic, Bike Sharing, Fitness Center, City
+  Library, Three Bases rebuilt OK, SmartTaxIS OK. Open on large diagrams: long includes between
+  far groups still cross (greedy search stops in a local optimum; multi-start would be next),
+  and a generalization parent can end up below its child (University: Teacher above
+  University Member).
+- **Sugiyama layered layout** (`UseCaseSugiyama`, pure, `UseCaseSugiyamaTest`, in the JaCoCo
+  rule): the established method for crossing minimization (Sugiyama, Tagawa, Toda 1981; as in
+  Graphviz dot, Gansner et al. 1993). Layers: primary actors, use case columns (depth),
+  secondary actors; long edges get virtual nodes; 24 alternate barycenter sweeps, each followed
+  by transposing adjacent nodes while crossings drop, keep the best order; the actor layer is
+  ordered by families (a parent, then its children); rows by isotonic regression (pool adjacent
+  violators: each node near its neighbours' average row, order kept, one row apart).
+  Measured on nine test specs (geometric problem score): Sugiyama alone is worse than the rules
+  plus local search (Airline 90 vs 44, E-shop 120 vs 28) because its guarantees hold for edges
+  drawn through the virtual nodes as polylines, while VP draws them straight center to center
+  (and stacks actors at their use cases' average). Even counted as polylines it keeps 8-12
+  crossings where the geometry-aware search reaches 5-7 straight. `UseCaseLayout.plan` therefore
+  runs both, the rules reordered and Sugiyama, each polished by `improve` (dependent moves and
+  same-column swaps), and keeps the one with fewer problems; a parent below its child now scores
+  2, so ties go to the family-ordered layout. Results: Airline 44, E-shop 30, University 20,
+  Clinic 0, the clean five unchanged; up to ~0.8 s off the EDT.
+- **Simulated annealing** (`UseCaseLayout.anneal`; Davidson and Harel, "Drawing Graphs Nicely
+  Using Simulated Annealing", 1996): the greedy searches stop in a local optimum. From the
+  better greedy result, a random use case moves to a random free cell of its allowed columns or
+  swaps with another of its column; a worse layout is accepted with probability
+  exp(-worsening / T), T falling geometrically from 20 to 0.01 over 4000 steps; cost = problems
+  + total line length / 2000. Results vary a lot by seed, so eight seeded runs go in parallel and
+  the best (fewest problems) wins only if better than the greedy one. Repeatable (fixed seeds);
+  clean layouts untouched. First version (cost length/2000, two columns of slack, rows free):
+  Airline 24, E-shop 22, University 4 problems, verified live (exactly the predicted
+  crossings), but the pictures sprawled: lines up to 60 % longer, two extra columns, long
+  diagonals across empty space (Book Flight far from Passenger). Now a dependent use case may go
+  one column right of its depth, rows stay within the rules' layout + 1, and line length weighs
+  one point per 300 px: Airline 98 -> 32 (length 16577 -> 19824, 3x12 -> 4x13 cells), E-shop
+  92 -> 22 (15772 -> 16603, 3x18 -> 3x19), University 112 -> 10 (13237 -> 14223, 2x15 -> 3x16),
+  Clinic 0; 1.4-3.6 s off the EDT. Without the Sugiyama start University stayed at 18 (even 32
+  runs reached only 10 then). Longer runs (20000 steps) helped less than more seeds. Verified live with these
+  settings: Airline 8 crossings, E-shop 5, University 2 (each exactly as predicted), compact
+  pictures again; Hotel, Clinic, Bike Sharing, Fitness Center, City Library, Three Bases rebuilt
+  OK, SmartTaxIS OK. Other families considered: force-directed (no fixed columns,
+  no crossing objective), orthogonal/planarization (bends every line), exact ILP/SAT (needs a
+  solver dependency).
+- **Ponytail review cuts (2026-10-06)**: the optimizer made two parts redundant. Bending lines to
+  secondary actors (`bendSecondaryLines`, `LayoutCheck.secondaryBend`) is gone: no line was bent
+  on any of the nine rebuilt diagrams any more (the optimizer removes lines through shapes
+  first; checkLayout would report one); the C2 note on bends went with it. The greedy reordering
+  of primary actors (`reorder`, and the explicit-order `UseCaseGrid.plan` it needed) is gone:
+  starting the greedy polish from the rules' layout did as well or better, and the polish after
+  each annealing run changed nothing. `problems` sums weights directly instead of parsing them
+  back from `issues` text. Offline after the cuts: Airline 28 (line length 16482, below the
+  rules' 16577), E-shop 18, University 12, Clinic 0, clean ones unchanged; 1.0-1.8 s.
+  Earlier entries describing bends and reordering are history.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

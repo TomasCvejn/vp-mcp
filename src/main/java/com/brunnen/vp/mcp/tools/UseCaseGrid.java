@@ -22,10 +22,10 @@ import java.util.Set;
  *       order), use cases another actor depends on or is linked to last;
  *   <li>a deeper use case linked directly to a primary actor gets a row of its own with the cells
  *       left of it empty, so the actor's line does not run through another use case;
- *   <li>other deeper use cases take the nearest usable row to their base's row, never a cell on an
- *       actor's line (left of an actor-linked or right of a secondary-linked use case); above first
- *       when the base's row holds a use case with another base below, so its line from below does
- *       not cross this one.
+ *   <li>other deeper use cases take the nearest usable row to their bases' average row, never a
+ *       cell on an actor's line (left of an actor-linked or right of a secondary-linked use case);
+ *       above first when the base's row holds a use case with another base below, so its line from
+ *       below does not cross this one.
  * </ul>
  */
 final class UseCaseGrid {
@@ -49,14 +49,8 @@ final class UseCaseGrid {
       Map<String, String> actorParent,
       List<String[]> deps,
       Set<String> secondaryLinked) {
-    Map<String, List<String>> bases = new HashMap<>();
-    for (String[] d : deps) {
-      bases.computeIfAbsent(d[1], k -> new ArrayList<>()).add(d[0]);
-    }
-    Map<String, Integer> column = new HashMap<>();
-    for (String uc : useCases) {
-      column(uc, bases, column, new HashSet<>());
-    }
+    Map<String, List<String>> bases = bases(deps);
+    Map<String, Integer> column = columns(useCases, deps);
     Map<String, Integer> rank = new HashMap<>();
     for (String uc : useCases) {
       rank.putIfAbsent(uc, rank.size());
@@ -85,14 +79,17 @@ final class UseCaseGrid {
     rest.sort((a, b) -> column.getOrDefault(a, 0) - column.getOrDefault(b, 0));
     for (String uc : rest) {
       int col = column.getOrDefault(uc, 0);
-      int base = grid.rows;
+      // Between its bases (average row), so lines from far-apart bases stay short.
+      int sum = 0;
+      int placed = 0;
       for (String b : bases.getOrDefault(uc, new ArrayList<>())) {
         Point p = grid.cells.get(b);
         if (p != null) {
-          base = p.y;
-          break;
+          sum += p.y;
+          placed++;
         }
       }
+      int base = placed == 0 ? grid.rows : sum / placed;
       // Nearest usable row to the base: base, +1, -1, +2, -2, ... or upwards first when the use
       // case already in the base's row has another base below (its line comes from below).
       int dir = 1;
@@ -114,6 +111,25 @@ final class UseCaseGrid {
       grid.rows = Math.max(grid.rows, row + 1);
     }
     return grid.cells;
+  }
+
+  /** dependent use case -> its bases (include: base -> included, extend: base -> extending). */
+  static Map<String, List<String>> bases(List<String[]> deps) {
+    Map<String, List<String>> bases = new HashMap<>();
+    for (String[] d : deps) {
+      bases.computeIfAbsent(d[1], k -> new ArrayList<>()).add(d[0]);
+    }
+    return bases;
+  }
+
+  /** use case -> its column: 0, or one more than its deepest base. */
+  static Map<String, Integer> columns(List<String> useCases, List<String[]> deps) {
+    Map<String, List<String>> bases = bases(deps);
+    Map<String, Integer> column = new HashMap<>();
+    for (String uc : useCases) {
+      column(uc, bases, column, new HashSet<>());
+    }
+    return column;
   }
 
   /** Placed cells plus the rows that actor lines run along. */

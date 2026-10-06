@@ -91,11 +91,15 @@ public class LayoutCheckTest {
     // Another line 30 px below: the 80x16 label goes above its own line (center y 100-12).
     java.awt.geom.Line2D below = new java.awt.geom.Line2D.Double(0, 130, 200, 130);
     assertEquals(
-        new Point(60, 80), LayoutCheck.labelSpot(own, Collections.singletonList(below), 80, 16));
+        new Point(60, 80),
+        LayoutCheck.labelSpot(
+            own, Collections.singletonList(below), Collections.emptyList(), 80, 16));
     // The other line above instead: the label goes below (center y 100+12).
     java.awt.geom.Line2D above = new java.awt.geom.Line2D.Double(0, 70, 200, 70);
     assertEquals(
-        new Point(60, 104), LayoutCheck.labelSpot(own, Collections.singletonList(above), 80, 16));
+        new Point(60, 104),
+        LayoutCheck.labelSpot(
+            own, Collections.singletonList(above), Collections.emptyList(), 80, 16));
   }
 
   @Test
@@ -115,5 +119,85 @@ public class LayoutCheckTest {
             "overlap: 'caption of Traffic' and 'Payment'",
             "line through shape: V-Payment crosses 'caption of Traffic'"),
         issues);
+  }
+
+  /**
+   * Measured on Three Bases: VP ran both includes along its bounding box corners, so they crossed
+   * at Process Payment's bottom-left corner, outside its ellipse. Center-to-center lines into the
+   * same use case only meet inside it.
+   */
+  @Test
+  public void reportsLinesIntoOneShapeCrossingOutsideIt() {
+    List<Box> boxes =
+        Arrays.asList(
+            uc("Process Payment", 740, 460),
+            new Box("Process Book Return", true, false, 340, 540, 200, 80),
+            uc("Charge Fee", 360, 640));
+    Line cornerA =
+        new Line("PBR-PP", "Process Book Return", "Process Payment", pt(489, 545), pt(780, 516));
+    Line cornerB = new Line("CF-PP", "Charge Fee", "Process Payment", pt(502, 650), pt(758, 510));
+    assertEquals(
+        Collections.singletonList("crossing: PBR-PP x CF-PP"), check(boxes, cornerA, cornerB));
+
+    Line centerA =
+        new Line("PBR-PP", "Process Book Return", "Process Payment", pt(525, 560), pt(753, 506));
+    Line centerB = new Line("CF-PP", "Charge Fee", "Process Payment", pt(489, 647), pt(771, 513));
+    assertEquals(Collections.emptyList(), check(boxes, centerA, centerB));
+  }
+
+  private static Point pt(int x, int y) {
+    return new Point(x, y);
+  }
+
+  /**
+   * Hotel: beside the middle of Book Room -> Process Payment, the «include» label sat on Add
+   * Breakfast (above the line) or Add Parking (below it); it moves along the line to a free spot.
+   * checkLayout reports a label on a shape, and a foreign line through a label, but not its own.
+   */
+  @Test
+  public void labelAvoidsShapesAndCheckLayoutReportsLabelsOnShapes() {
+    List<Box> shapes = Arrays.asList(uc("Add Breakfast", 740, 100), uc("Add Parking", 740, 190));
+    java.awt.geom.Line2D own = new java.awt.geom.Line2D.Double(536, 141, 1124, 211);
+    Point spot = LayoutCheck.labelSpot(own, Collections.emptyList(), shapes, 84, 16);
+    Line include =
+        new Line("Include BR -> PP", "Book Room", "Process Payment", pt(536, 141), pt(1124, 211));
+    assertEquals(
+        Collections.emptyList(),
+        check(
+            Arrays.asList(
+                shapes.get(0), shapes.get(1), Box.label(include.name, spot.x, spot.y, 84, 16)),
+            include));
+
+    // The old spot beside the midpoint, on Add Breakfast.
+    Line through = new Line("Assoc A -> B", "A", "B", pt(780, 165), pt(880, 165));
+    assertEquals(
+        Arrays.asList(
+            "overlap: 'Add Breakfast' and 'label of Include BR -> PP'",
+            "line through shape: Assoc A -> B crosses 'label of Include BR -> PP'"),
+        check(
+            Arrays.asList(shapes.get(0), Box.label(include.name, 790, 151, 84, 16)),
+            include,
+            through));
+  }
+
+  /**
+   * Hotel, measured: the «extend» label of Apply Discount Code sat between its own line and the
+   * Cancel Booking -> Settle Bill line, so it read as either's. It must end up nearer its own line
+   * than any other.
+   */
+  @Test
+  public void labelEndsUpNearerItsOwnLineThanAnyOther() {
+    java.awt.geom.Line2D own = new java.awt.geom.Line2D.Double(510, 163, 771, 287);
+    List<java.awt.geom.Line2D> others =
+        Arrays.asList(
+            new java.awt.geom.Line2D.Double(529, 151, 753, 204),
+            new java.awt.geom.Line2D.Double(489, 243, 771, 377));
+    Point spot = LayoutCheck.labelSpot(own, others, Collections.emptyList(), 81, 16);
+    double cx = spot.x + 40.5;
+    double cy = spot.y + 8;
+    for (java.awt.geom.Line2D other : others) {
+      assertTrue(
+          spot + " nearer another line", own.ptSegDist(cx, cy) + 10 < other.ptSegDist(cx, cy));
+    }
   }
 }

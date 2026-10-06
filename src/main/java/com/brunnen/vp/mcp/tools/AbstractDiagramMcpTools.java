@@ -658,48 +658,29 @@ public abstract class AbstractDiagramMcpTools {
       return runOnEdt(
           () -> {
             IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
-            List<LayoutCheck.Box> boxes = new ArrayList<>();
+            List<LayoutCheck.Box> boxes = layoutBoxes(diagram);
             List<LayoutCheck.Line> lines = new ArrayList<>();
             for (IDiagramElement de : getDiagramElementsList(diagram)) {
               IModelElement model = de.getModelElement();
-              if (model == null) {
+              if (!(de instanceof IConnectorUIModel) || model == null) {
                 continue;
               }
-              if (de instanceof IConnectorUIModel) {
-                IConnectorUIModel c = (IConnectorUIModel) de;
-                Point[] points = c.getPoints();
-                if (c.getFromShape() == null || c.getToShape() == null || points == null) {
-                  continue;
-                }
-                String from = c.getFromShape().getModelElement().getName();
-                String to = c.getToShape().getModelElement().getName();
-                String name = model.getModelType() + " " + from + " -> " + to;
-                lines.add(new LayoutCheck.Line(name, from, to, points));
-              } else if (de instanceof IShapeUIModel) {
-                boolean container =
-                    model instanceof com.vp.plugin.model.ISystem
-                        || model instanceof com.vp.plugin.model.IPackage;
+              IConnectorUIModel c = (IConnectorUIModel) de;
+              Point[] points = c.getPoints();
+              if (c.getFromShape() == null || c.getToShape() == null || points == null) {
+                continue;
+              }
+              String from = c.getFromShape().getModelElement().getName();
+              String to = c.getToShape().getModelElement().getName();
+              String name = model.getModelType() + " " + from + " -> " + to;
+              lines.add(new LayoutCheck.Line(name, from, to, points));
+              // ponytail: only «include»/«extend» labels so far (placed by layoutUseCaseDiagram);
+              // class diagram labels have their own placement (layoutConnectorLabels).
+              ICaptionUIModel cap = c.getCaptionUIModel();
+              if (cap != null && (model instanceof IInclude || model instanceof IExtend)) {
                 boxes.add(
-                    new LayoutCheck.Box(
-                        model.getName(),
-                        model instanceof IUseCase,
-                        container,
-                        de.getX(),
-                        de.getY(),
-                        de.getWidth(),
-                        de.getHeight()));
-                // A caption drawn outside its shape (an actor's name below the figure) can
-                // collide with other shapes too; captions inside their shape cannot.
-                ICaptionUIModel cap = outsideCaption(de);
-                if (cap != null) {
-                  boxes.add(
-                      LayoutCheck.Box.caption(
-                          model.getName(),
-                          cap.getX(),
-                          cap.getY(),
-                          cap.getWidth(),
-                          cap.getHeight()));
-                }
+                    LayoutCheck.Box.label(
+                        name, cap.getX(), cap.getY(), cap.getWidth(), cap.getHeight()));
               }
             }
             List<String> issues = LayoutCheck.check(boxes, lines);
@@ -708,6 +689,39 @@ public abstract class AbstractDiagramMcpTools {
     } catch (Exception e) {
       return "Error checking layout: " + e.getMessage();
     }
+  }
+
+  /**
+   * The shapes of a diagram for {@link LayoutCheck}, with the captions drawn outside their shape
+   * (an actor's name below the figure): those collide with other shapes too. On the EDT.
+   */
+  protected List<LayoutCheck.Box> layoutBoxes(IDiagramUIModel diagram) {
+    List<LayoutCheck.Box> boxes = new ArrayList<>();
+    for (IDiagramElement de : getDiagramElementsList(diagram)) {
+      IModelElement model = de.getModelElement();
+      if (!(de instanceof IShapeUIModel) || model == null) {
+        continue;
+      }
+      boolean container =
+          model instanceof com.vp.plugin.model.ISystem
+              || model instanceof com.vp.plugin.model.IPackage;
+      boxes.add(
+          new LayoutCheck.Box(
+              model.getName(),
+              model instanceof IUseCase,
+              container,
+              de.getX(),
+              de.getY(),
+              de.getWidth(),
+              de.getHeight()));
+      ICaptionUIModel cap = outsideCaption(de);
+      if (cap != null) {
+        boxes.add(
+            LayoutCheck.Box.caption(
+                model.getName(), cap.getX(), cap.getY(), cap.getWidth(), cap.getHeight()));
+      }
+    }
+    return boxes;
   }
 
   /**
@@ -1322,9 +1336,13 @@ public abstract class AbstractDiagramMcpTools {
       return;
     }
     // Aim an actor's lines at its center so they all fan out of one point (house convention
-    // C1); by default VP spreads the ends around the figure and its caption.
+    // C1); by default VP spreads the ends around the figure and its caption. Use cases too: by
+    // default VP runs a line along the line between the facing corners of the two bounding
+    // boxes, so all lines from below-left of a use case met at its bottom-left corner and
+    // crossed just before their arrowheads.
     for (IShapeUIModel shape : new IShapeUIModel[] {from, to}) {
-      if (shape.getModelElement() instanceof IActor) {
+      if (shape.getModelElement() instanceof IActor
+          || shape.getModelElement() instanceof IUseCase) {
         shape.setConnectionPointType(IShapeUIModel.CONNECTION_POINT_TYPE_CENTER);
       }
     }
