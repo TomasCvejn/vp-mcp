@@ -6,6 +6,7 @@ import java.awt.Shape;
 import java.awt.geom.Area;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.Line2D;
+import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.List;
@@ -42,6 +43,11 @@ final class LayoutCheck {
     /** The caption of shape {@code owner}, drawn outside it (e.g. below an actor). */
     static Box caption(String owner, int x, int y, int w, int h) {
       return new Box("caption of " + owner, false, false, x, y, w, h, owner);
+    }
+
+    /** The «include»/«extend» label of the line named {@code line}. */
+    static Box label(String line, int x, int y, int w, int h) {
+      return new Box("label of " + line, false, false, x, y, w, h, line);
     }
 
     /** Whether the two boxes are a shape and its own caption, or two captions of one shape. */
@@ -111,7 +117,9 @@ final class LayoutCheck {
     for (Line line : lines) {
       Area stroke = stroke(line);
       for (Box box : boxes) {
-        boolean own = line.touches(box.name) || (box.owner != null && line.touches(box.owner));
+        boolean own =
+            line.touches(box.name)
+                || (box.owner != null && (line.touches(box.owner) || line.name.equals(box.owner)));
         if (!box.container && !own && intersect(stroke, box.area(GRAZE))) {
           issues.add("line through shape: " + line.name + " crosses '" + box.name + "'");
         }
@@ -121,8 +129,13 @@ final class LayoutCheck {
       for (int j = i + 1; j < lines.size(); j++) {
         Line a = lines.get(i);
         Line b = lines.get(j);
-        // Lines sharing a shape meet at it by design (an actor's fan, include chains).
-        if (!a.touches(b.from) && !a.touches(b.to) && cross(a, b)) {
+        String shared = a.touches(b.from) ? b.from : a.touches(b.to) ? b.to : null;
+        Point2D at = crossing(a, b);
+        // Lines sharing a shape may meet at it (an actor's fan), but not cross outside it: VP's
+        // corner routing once made two includes cross 20 px before their arrowheads.
+        if (at != null
+            && !(endsNear(a, at) && endsNear(b, at))
+            && (shared == null || !near(boxes, shared, at))) {
           issues.add("crossing: " + a.name + " x " + b.name);
         }
       }
@@ -131,14 +144,110 @@ final class LayoutCheck {
   }
 
   /**
-   * Where to put a w x h label of the line {@code own} so that it is clearly that line's: centered
-   * just beside the midpoint, on whichever side is farther from the {@code others} lines.
+   * Where a line from a use case to a secondary actor should bend, or null when the straight line
+   * is clear or no bend is. A bent line runs level from the use case to the bend, then on to the
+   * actor. Bends are tried from {@code maxX} (just outside the boundary) leftwards in 20 px steps,
+   * so the line bends as late as it can; the last segment must miss every obstacle and pass above
+   * the actor's name caption (a steep segment from below ended on the caption, not on the figure).
+   *
+   * @param from the use case's center
+   * @param to the actor's center
+   * @param obstacles every other shape
+   * @param caption the actor's name caption under its figure
+   */
+  static Point secondaryBend(
+      Point from, Point to, List<Box> obstacles, Rectangle2D caption, int minX, int maxX) {
+    if (clear(from, to, obstacles, caption)) {
+      return null;
+    }
+    for (int x = maxX; x >= minX; x -= 20) {
+      Point bend = new Point(x, from.y);
+      if (clear(from, bend, obstacles, caption) && clear(bend, to, obstacles, caption)) {
+        return bend;
+      }
+    }
+    // No clear bend: a forced one ran through more than the straight line (E-shop).
+    return null;
+  }
+
+  private static boolean clear(Point a, Point b, List<Box> obstacles, Rectangle2D caption) {
+    Line2D segment = new Line2D.Double(a, b);
+    if (segment.intersects(caption)) {
+      return false;
+    }
+    Area stroke = new Area(new BasicStroke(1f).createStrokedShape(segment));
+    for (Box box : obstacles) {
+      if (!box.container && intersect(stroke, box.area(GRAZE))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Where to put a w x h label of the line {@code own} so that it is clearly that line's: just
+   * beside it, at least {@code LABEL_GAP} px off every one of the {@code obstacles} (shapes,
+   * captions, labels placed before) and not across another line. Spots beside the middle come
+   * first, then beside 40 %, 60 %, 30 %, ... of the line, the side farther from the {@code others}
+   * first; the first free spot whose own line is clearly the nearest (by 12 px) wins, a label
+   * nearer another line read as that line's. Failing that, the free spot where its own line is
+   * nearest relative to the others; failing that, beside the middle.
    *
    * @return the label's top-left corner
    */
-  static Point labelSpot(Line2D own, List<Line2D> others, int w, int h) {
-    double mx = (own.getX1() + own.getX2()) / 2;
-    double my = (own.getY1() + own.getY2()) / 2;
+  static Point labelSpot(Line2D own, List<Line2D> others, List<Box> obstacles, int w, int h) {
+    Point best = labelSpotAt(own, 0.5, others, w, h);
+    double bestMargin = Double.NEGATIVE_INFINITY;
+    for (double t : new double[] {0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8}) {
+      for (boolean otherSide : new boolean[] {false, true}) {
+        Point spot = labelSpotAt(own, t, others, w, h, otherSide);
+        if (!free(new Rectangle2D.Double(spot.x, spot.y, w, h), others, obstacles)) {
+          continue;
+        }
+        double cx = spot.x + w / 2.0;
+        double cy = spot.y + h / 2.0;
+        double nearestOther = 1000;
+        for (Line2D other : others) {
+          nearestOther = Math.min(nearestOther, other.ptSegDist(cx, cy));
+        }
+        double margin = nearestOther - own.ptSegDist(cx, cy);
+        if (margin >= 12) {
+          return spot;
+        }
+        if (margin > bestMargin) {
+          bestMargin = margin;
+          best = spot;
+        }
+      }
+    }
+    return best;
+  }
+
+  private static boolean free(Rectangle2D label, List<Line2D> others, List<Box> obstacles) {
+    for (Line2D other : others) {
+      if (other.intersects(label)) {
+        return false;
+      }
+    }
+    Area area = new Area(label);
+    for (Box box : obstacles) {
+      // Kept LABEL_GAP off: checkLayout tests overlaps exactly, and VP may resize a label.
+      if (!box.container && intersect(area, box.area(-LABEL_GAP))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  private static Point labelSpotAt(Line2D own, double t, List<Line2D> others, int w, int h) {
+    return labelSpotAt(own, t, others, w, h, false);
+  }
+
+  /** Beside the point at {@code t} of the line, on the side farther from the others (or not). */
+  private static Point labelSpotAt(
+      Line2D own, double t, List<Line2D> others, int w, int h, boolean otherSide) {
+    double mx = own.getX1() + t * (own.getX2() - own.getX1());
+    double my = own.getY1() + t * (own.getY2() - own.getY1());
     double dx = own.getX2() - own.getX1();
     double dy = own.getY2() - own.getY1();
     double len = Math.hypot(dx, dy);
@@ -148,6 +257,7 @@ final class LayoutCheck {
     // Far enough that the label's nearest corner clears the line, whatever its slope.
     double offset = (Math.abs(nx) * w + Math.abs(ny) * h) / 2 + LABEL_GAP;
     Point best = null;
+    Point worst = null;
     double bestClearance = -1;
     for (int side : new int[] {1, -1}) {
       double cx = mx + side * nx * offset;
@@ -156,12 +266,16 @@ final class LayoutCheck {
       for (Line2D other : others) {
         clearance = Math.min(clearance, other.ptSegDist(cx, cy));
       }
+      Point spot = new Point((int) Math.round(cx - w / 2.0), (int) Math.round(cy - h / 2.0));
       if (clearance > bestClearance) {
         bestClearance = clearance;
-        best = new Point((int) Math.round(cx - w / 2.0), (int) Math.round(cy - h / 2.0));
+        worst = best;
+        best = spot;
+      } else {
+        worst = spot;
       }
     }
-    return best;
+    return otherSide ? worst : best;
   }
 
   private static boolean intersect(Area a, Area b) {
@@ -180,20 +294,40 @@ final class LayoutCheck {
     return area;
   }
 
-  private static boolean cross(Line a, Line b) {
+  /** Where the two polylines first cross, or null. */
+  private static Point2D crossing(Line a, Line b) {
     for (int i = 0; i + 1 < a.points.length; i++) {
       for (int j = 0; j + 1 < b.points.length; j++) {
-        if (Line2D.linesIntersect(
-            a.points[i].x,
-            a.points[i].y,
-            a.points[i + 1].x,
-            a.points[i + 1].y,
-            b.points[j].x,
-            b.points[j].y,
-            b.points[j + 1].x,
-            b.points[j + 1].y)) {
-          return true;
+        Point p1 = a.points[i];
+        Point p2 = a.points[i + 1];
+        Point q1 = b.points[j];
+        Point q2 = b.points[j + 1];
+        if (Line2D.linesIntersect(p1.x, p1.y, p2.x, p2.y, q1.x, q1.y, q2.x, q2.y)) {
+          double d =
+              (p2.x - p1.x) * (double) (q2.y - q1.y) - (p2.y - p1.y) * (double) (q2.x - q1.x);
+          if (d == 0) {
+            return new Point2D.Double(p2.x, p2.y); // collinear overlap
+          }
+          double t =
+              ((q1.x - p1.x) * (double) (q2.y - q1.y) - (q1.y - p1.y) * (double) (q2.x - q1.x)) / d;
+          return new Point2D.Double(p1.x + t * (p2.x - p1.x), p1.y + t * (p2.y - p1.y));
         }
+      }
+    }
+    return null;
+  }
+
+  /** The point is within GRAZE px of one end of the line: lines meeting there do not cross. */
+  private static boolean endsNear(Line line, Point2D at) {
+    return at.distance(line.points[0]) <= GRAZE
+        || at.distance(line.points[line.points.length - 1]) <= GRAZE;
+  }
+
+  /** The point lies on or within GRAZE px of the shape named {@code name}. */
+  private static boolean near(List<Box> boxes, String name, Point2D at) {
+    for (Box box : boxes) {
+      if (box.name.equals(name) && box.area(-GRAZE).contains(at)) {
+        return true;
       }
     }
     return false;

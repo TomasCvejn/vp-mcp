@@ -197,4 +197,61 @@ public class UseCaseGridTest {
     assertEquals(new Point(0, 1), p.get("Cancel Reservation"));
     assertEquals(new Point(0, 2), p.get("Pay Membership"));
   }
+
+  /**
+   * Bike sharing: Process Payment is included by Return Bike (row 1) and Charge Subscription (row
+   * 5); it goes between them (row 3) instead of beside Return Bike with a long line up from Charge
+   * Subscription.
+   */
+  @Test
+  public void putsUseCaseWithTwoBasesBetweenThem() {
+    Map<String, List<String>> actors = new LinkedHashMap<>();
+    actors.put("Rider", Arrays.asList("Rent Bike", "Return Bike", "Register", "Report"));
+    actors.put("Operator", Collections.singletonList("Manage Tariffs"));
+    actors.put("Time", Collections.singletonList("Charge Subscription"));
+
+    Map<String, Point> p =
+        UseCaseGrid.plan(
+            Arrays.asList(
+                "Rent Bike",
+                "Return Bike",
+                "Register",
+                "Report",
+                "Manage Tariffs",
+                "Charge Subscription",
+                "Process Payment"),
+            actors,
+            new HashMap<>(),
+            Arrays.asList(
+                new String[] {"Return Bike", "Process Payment"},
+                new String[] {"Charge Subscription", "Process Payment"}),
+            new HashSet<>(Collections.singletonList("Process Payment")));
+
+    assertEquals(new Point(0, 1), p.get("Return Bike"));
+    assertEquals(new Point(0, 5), p.get("Charge Subscription"));
+    assertEquals(new Point(1, 3), p.get("Process Payment"));
+  }
+
+  /** Three bases in rows 1, 5 and 6: the included use case takes their average row, 4. */
+  @Test
+  public void putsUseCaseWithThreeBasesInTheirAverageRow() {
+    Map<String, List<String>> actors = new LinkedHashMap<>();
+    actors.put("Reader", Arrays.asList("Search", "Reserve", "Borrow", "Extend"));
+    actors.put("Librarian", Arrays.asList("Register", "Return"));
+    actors.put("Time", Collections.singletonList("Charge Fee"));
+
+    Map<String, Point> p =
+        UseCaseGrid.plan(
+            Arrays.asList(
+                "Search", "Reserve", "Borrow", "Extend", "Register", "Return", "Charge Fee", "Pay"),
+            actors,
+            new HashMap<>(),
+            Arrays.asList(
+                new String[] {"Reserve", "Pay"},
+                new String[] {"Return", "Pay"},
+                new String[] {"Charge Fee", "Pay"}),
+            new HashSet<>(Collections.singletonList("Pay")));
+
+    assertEquals(new Point(1, 4), p.get("Pay"));
+  }
 }
