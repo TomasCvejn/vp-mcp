@@ -77,7 +77,6 @@ final class UseCaseCheck {
             "SYN5: '" + e[1] + "' has no named extension point for the extend from '" + e[0] + "'");
       }
     }
-    Set<String> secondary = new HashSet<>();
     for (String[] a : associations) {
       boolean arrowFrom = Boolean.parseBoolean(a[2]);
       boolean arrowTo = Boolean.parseBoolean(a[3]);
@@ -90,9 +89,7 @@ final class UseCaseCheck {
         if (!(end == 0 ? arrowFrom : arrowTo)) {
           continue;
         }
-        if (actors.containsKey(at)) {
-          secondary.add(at);
-        } else if (actors.containsKey(other)) {
+        if (!actors.containsKey(at) && actors.containsKey(other)) {
           out.add(
               "§1.5: arrowhead at use case '"
                   + at
@@ -104,6 +101,7 @@ final class UseCaseCheck {
       }
     }
     if (boundaries.size() == 1) {
+      Set<String> secondary = rightSide();
       double left = num(boundaries.get(0)[1]);
       double right = left + num(boundaries.get(0)[3]);
       for (String actor : actors.keySet()) {
@@ -112,7 +110,10 @@ final class UseCaseCheck {
           continue;
         }
         if (secondary.contains(actor) && x < right) {
-          out.add("C3: secondary actor '" + actor + "' is not right of the boundary");
+          out.add(
+              "C3: secondary, «system» or «time» actor '"
+                  + actor
+                  + "' is not right of the boundary");
         } else if (!secondary.contains(actor) && x > left) {
           out.add("C3: primary actor '" + actor + "' is not left of the boundary");
         }
@@ -156,6 +157,46 @@ final class UseCaseCheck {
       }
     }
     return out;
+  }
+
+  /**
+   * The actors drawn right of the boundary (C3): an actor that is only ever called, and every actor
+   * with the «system» or «time» stereotype. Any other actor that starts a use case (no arrowhead at
+   * it) goes left, even if another use case calls it. A generalization tree stays together on one
+   * side: left when any of its unstereotyped actors starts a use case.
+   */
+  Set<String> rightSide() {
+    Set<String> starts = new HashSet<>();
+    Set<String> right = new HashSet<>();
+    for (String[] a : associations) {
+      for (int end = 0; end < 2; end++) {
+        if (actors.containsKey(a[end])) {
+          (Boolean.parseBoolean(a[2 + end]) ? right : starts).add(a[end]);
+        }
+      }
+    }
+    for (Map.Entry<String, List<String>> a : actors.entrySet()) {
+      if (hasIgnoreCase(a.getValue(), "system") || hasIgnoreCase(a.getValue(), "time")) {
+        starts.remove(a.getKey());
+        right.add(a.getKey());
+      }
+    }
+    spreadOverGeneralizations(starts);
+    right.removeAll(starts);
+    spreadOverGeneralizations(right); // only trees without a left member are left in it
+    return right;
+  }
+
+  /** Adds every actor of a generalization tree that has a member in {@code side}. */
+  private void spreadOverGeneralizations(Set<String> side) {
+    for (boolean grew = true; grew; ) {
+      grew = false;
+      for (String[] g : generalizations) {
+        if (side.contains(g[0]) || side.contains(g[1])) {
+          grew |= side.add(g[0]) | side.add(g[1]);
+        }
+      }
+    }
   }
 
   /** The shape lies wholly within one boundary (SYN1 is about the picture, not the model). */

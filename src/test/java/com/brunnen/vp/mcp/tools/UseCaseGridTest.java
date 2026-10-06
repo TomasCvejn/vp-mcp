@@ -254,4 +254,32 @@ public class UseCaseGridTest {
 
     assertEquals(new Point(1, 4), p.get("Pay"));
   }
+
+  /**
+   * Renew is linked only to Time on the right: it moves to the deepest column (1) instead of 0, so
+   * Time's line does not cross the diagram, and Pay, which Renew includes, moves one further. Pay
+   * is linked only to the right as well, but has a base, so its column comes from the bases.
+   */
+  @Test
+  public void putsUseCaseLinkedOnlyToTheRightInTheDeepestColumn() {
+    Set<String> rightOnly =
+        UseCaseGrid.rightOnly(
+            Collections.singletonMap("Rider", Collections.singletonList("Return")),
+            new HashSet<>(Arrays.asList("Return", "Renew", "Pay")));
+    assertEquals(new HashSet<>(Arrays.asList("Renew", "Pay")), rightOnly);
+
+    Map<String, Integer> columns =
+        UseCaseGrid.columns(
+            Arrays.asList("Return", "Pay", "Renew", "Report"),
+            Arrays.asList(
+                new String[] {"Return", "Pay"},
+                new String[] {"Renew", "Pay"},
+                new String[] {"Return", "Report"}),
+            rightOnly);
+
+    assertEquals(0, (int) columns.get("Return"));
+    assertEquals(1, (int) columns.get("Renew"));
+    assertEquals(2, (int) columns.get("Pay"));
+    assertEquals(1, (int) columns.get("Report"));
+  }
 }

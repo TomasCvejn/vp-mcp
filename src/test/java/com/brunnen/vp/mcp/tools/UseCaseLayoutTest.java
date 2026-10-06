@@ -2,6 +2,7 @@ package com.brunnen.vp.mcp.tools;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
@@ -113,6 +114,95 @@ public class UseCaseLayoutTest {
             .contains(
                 "10 Insurance System - Submit Insurance Claim"
                     + " through Request Prior Authorization"));
+  }
+
+  /**
+   * SmartTaxIS: the include CreateOrder -> Navigate passed 0.3 px outside SearchForTaxis's 2 px
+   * inset, and checkLayout (1 px pen, whole-pixel ends) reported it through the shape.
+   */
+  @Test
+  public void aLineGrazingAnEllipseByLessThanThePenHitsIt() {
+    java.awt.geom.Rectangle2D searchForTaxis =
+        new java.awt.geom.Rectangle2D.Double(340, 810, 200, 80);
+    assertTrue(
+        UseCaseLayout.hits(
+            new java.awt.geom.Line2D.Double(440, 760, 1200, 1390), searchForTaxis, true));
+    assertFalse(
+        UseCaseLayout.hits(
+            new java.awt.geom.Line2D.Double(440, 760, 1200, 1300), searchForTaxis, true));
+  }
+
+  /**
+   * The SmartTaxIS of the external review.png, transcribed 1:1: «system» Time, Payment Provider and
+   * Traffic Provider on the right, Premium User left (it starts ManageMembership).
+   */
+  static UseCaseLayout.Input reviewSmartTaxis() {
+    Map<String, String> parent = new HashMap<>();
+    parent.put("Premium User", "Registered User");
+    parent.put("Free User", "Registered User");
+    return new UseCaseLayout.Input(
+        Arrays.asList(
+            "RegisterAccount",
+            "SearchForTaxis",
+            "AdvancedSearch",
+            "ManageMembership",
+            "SendRenewalNotification",
+            "CancelOrder",
+            "IssueFine",
+            "CreateOrder",
+            "ApplyDiscount",
+            "ViewOrderHistory",
+            "BuyPremium",
+            "ProvidePayment",
+            "RenewMemberships",
+            "Navigate",
+            "SendBatteryStatus",
+            "ReportIncident",
+            "ManageCompanyAssets",
+            "ViewStatistics"),
+        map(
+            "Unregistered User", "RegisterAccount",
+            "Unregistered User", "SearchForTaxis",
+            "Premium User", "ManageMembership",
+            "Premium User", "SendRenewalNotification",
+            "Registered User", "SearchForTaxis",
+            "Registered User", "CancelOrder",
+            "Registered User", "CreateOrder",
+            "Registered User", "ViewOrderHistory",
+            "Free User", "BuyPremium",
+            "Manager", "ManageCompanyAssets",
+            "Manager", "ViewStatistics",
+            "Taxi", "Navigate",
+            "Taxi", "SendBatteryStatus",
+            "Taxi", "ReportIncident"),
+        map(
+            "Time", "SendRenewalNotification",
+            "Time", "CancelOrder",
+            "Time", "RenewMemberships",
+            "Payment Provider", "ProvidePayment",
+            "Traffic Provider", "Navigate"),
+        parent,
+        Arrays.asList(
+            new String[] {"CreateOrder", "ProvidePayment"},
+            new String[] {"RenewMemberships", "ProvidePayment"},
+            new String[] {"BuyPremium", "ProvidePayment"},
+            new String[] {"CreateOrder", "Navigate"},
+            new String[] {"SearchForTaxis", "AdvancedSearch"},
+            new String[] {"CancelOrder", "IssueFine"},
+            new String[] {"CreateOrder", "ApplyDiscount"},
+            new String[] {"SendBatteryStatus", "Navigate"}),
+        new HashSet<>(
+            Arrays.asList("SearchForTaxis", "CancelOrder", "CreateOrder", "SendBatteryStatus")),
+        new HashSet<>(Arrays.asList("Time", "Payment Provider", "Traffic Provider")));
+  }
+
+  /** 4000 annealing steps froze at 3 crossings (12 points); the longer runs reach 1. */
+  @Test
+  public void planLeavesOneCrossingOnTheReviewSmartTaxis() {
+    UseCaseLayout.Input in = reviewSmartTaxis();
+    assertEquals(
+        Collections.singletonList("4 Registered User - CancelOrder x Free User - BuyPremium"),
+        UseCaseLayout.issues(UseCaseLayout.drawing(in, UseCaseLayout.plan(in))));
   }
 
   @Test
