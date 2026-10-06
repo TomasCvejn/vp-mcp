@@ -717,7 +717,6 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                 centerConnector((IConnectorUIModel) de);
               }
             }
-            bendSecondaryLines(diagram);
           });
       String renderError = renderDiagram(diagramName);
       if (renderError == null) {
@@ -768,95 +767,6 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
   private static java.awt.geom.Line2D segment(IConnectorUIModel c) {
     java.awt.Point[] p = c.getPoints();
     return new java.awt.geom.Line2D.Double(p[0], p[p.length - 1]);
-  }
-
-  /**
-   * A line to a secondary actor stays straight unless it would run through another shape (an actor
-   * beside several use cases sits at their average height, so its lines are diagonal). Then it runs
-   * level from its use case, through the cells the grid keeps free right of it, and bends towards
-   * the actor ({@link LayoutCheck#secondaryBend}). On the EDT.
-   */
-  private void bendSecondaryLines(IDiagramUIModel diagram) {
-    int right = Integer.MIN_VALUE;
-    for (IDiagramElement de : getDiagramElementsList(diagram)) {
-      if (de.getModelElement() instanceof ISystem) {
-        right = Math.max(right, de.getX() + de.getWidth());
-      }
-    }
-    for (IDiagramElement de : getDiagramElementsList(diagram)) {
-      if (!(de instanceof IConnectorUIModel) || !(de.getModelElement() instanceof IAssociation)) {
-        continue;
-      }
-      IConnectorUIModel c = (IConnectorUIModel) de;
-      IShapeUIModel from = c.getFromShape();
-      IShapeUIModel to = c.getToShape();
-      if (from == null || to == null) {
-        continue;
-      }
-      boolean actorIsTo = to.getModelElement() instanceof IActor && to.getX() > right;
-      boolean actorIsFrom = from.getModelElement() instanceof IActor && from.getX() > right;
-      if (!actorIsTo && !actorIsFrom) {
-        continue;
-      }
-      IShapeUIModel uc = actorIsTo ? from : to;
-      IShapeUIModel actor = actorIsTo ? to : from;
-      java.awt.Point ucCenter = center(uc);
-      java.awt.Point actorCenter = center(actor);
-      List<LayoutCheck.Box> obstacles = new ArrayList<>();
-      for (IDiagramElement other : getDiagramElementsList(diagram)) {
-        IModelElement m = other.getModelElement();
-        if ((m instanceof IUseCase || m instanceof IActor)
-            && !other.getId().equals(uc.getId())
-            && !other.getId().equals(actor.getId())) {
-          obstacles.add(
-              new LayoutCheck.Box(
-                  m.getName(),
-                  m instanceof IUseCase,
-                  false,
-                  other.getX(),
-                  other.getY(),
-                  other.getWidth(),
-                  other.getHeight()));
-          if (m instanceof IActor) {
-            // Its name under the figure too (estimated: VP lays captions out on render).
-            java.awt.geom.Rectangle2D name =
-                UseCaseLayout.caption(
-                    m.getName(),
-                    m.stereotypeCount() > 0,
-                    new java.awt.geom.Rectangle2D.Double(
-                        other.getX(), other.getY(), other.getWidth(), other.getHeight()));
-            obstacles.add(
-                LayoutCheck.Box.caption(
-                    m.getName(),
-                    (int) name.getX(),
-                    (int) name.getY(),
-                    (int) name.getWidth(),
-                    (int) name.getHeight()));
-          }
-        }
-      }
-      // ponytail: the name caption is only laid out on render; reserve a two-line caption
-      // («system» and a name) 120 px wide under the figure.
-      java.awt.geom.Rectangle2D caption =
-          new java.awt.geom.Rectangle2D.Double(
-              actorCenter.x - 60, actor.getY() + actor.getHeight(), 120, 32);
-      java.awt.Point bend =
-          LayoutCheck.secondaryBend(
-              ucCenter,
-              actorCenter,
-              obstacles,
-              caption,
-              uc.getX() + uc.getWidth() + 20,
-              right + 20);
-      if (bend == null) {
-        continue; // the straight line is clear
-      }
-      c.clearPoints();
-      c.addPoint(actorIsTo ? ucCenter : actorCenter);
-      c.addPoint(bend);
-      c.addPoint(actorIsTo ? actorCenter : ucCenter);
-      c.setRequestRebuild(true);
-    }
   }
 
   /**

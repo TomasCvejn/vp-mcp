@@ -150,27 +150,6 @@ public class LayoutCheckTest {
   }
 
   /**
-   * Clinic: Insurance System (center 1030,460) sits at the average height of its three use cases.
-   * Verify Insurance Coverage's straight line is clear; Submit Insurance Claim's runs through
-   * Request Prior Authorization, and bending just outside the boundary (x 960) would make its last
-   * segment climb into the actor's name caption, so it bends further left, under Request Prior
-   * Authorization.
-   */
-  @Test
-  public void bendsSecondaryLineOnlyWhenBlockedAndAboveTheCaption() {
-    Point actor = pt(1030, 460);
-    java.awt.geom.Rectangle2D caption = new java.awt.geom.Rectangle2D.Double(970, 490, 120, 32);
-    List<Box> others =
-        Arrays.asList(
-            uc("Request Prior Authorization", 740, 460),
-            uc("View Patient History", 360, 370),
-            new Box("Write Prescription", true, false, 340, 450, 200, 80));
-    assertEquals(null, LayoutCheck.secondaryBend(pt(440, 310), actor, others, caption, 540, 960));
-    assertEquals(
-        pt(780, 580), LayoutCheck.secondaryBend(pt(440, 580), actor, others, caption, 540, 960));
-  }
-
-  /**
    * Hotel: beside the middle of Book Room -> Process Payment, the «include» label sat on Add
    * Breakfast (above the line) or Add Parking (below it); it moves along the line to a free spot.
    * checkLayout reports a label on a shape, and a foreign line through a label, but not its own.

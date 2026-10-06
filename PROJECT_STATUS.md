@@ -403,6 +403,16 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   OK, SmartTaxIS OK. Other families considered: force-directed (no fixed columns,
   no crossing objective), orthogonal/planarization (bends every line), exact ILP/SAT (needs a
   solver dependency).
+- **Ponytail review cuts (2026-10-06)**: the optimizer made two parts redundant. Bending lines to
+  secondary actors (`bendSecondaryLines`, `LayoutCheck.secondaryBend`) is gone: no line was bent
+  on any of the nine rebuilt diagrams any more (the optimizer removes lines through shapes
+  first; checkLayout would report one); the C2 note on bends went with it. The greedy reordering
+  of primary actors (`reorder`, and the explicit-order `UseCaseGrid.plan` it needed) is gone:
+  starting the greedy polish from the rules' layout did as well or better, and the polish after
+  each annealing run changed nothing. `problems` sums weights directly instead of parsing them
+  back from `issues` text. Offline after the cuts: Airline 28 (line length 16482, below the
+  rules' 16577), E-shop 18, University 12, Clinic 0, clean ones unchanged; 1.0-1.8 s.
+  Earlier entries describing bends and reordering are history.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

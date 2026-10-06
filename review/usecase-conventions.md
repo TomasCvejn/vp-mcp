@@ -25,9 +25,6 @@ For a secondary actor (directed association, arrowhead at the actor), the connec
 be drawn **all the way to the actor**, not stopping short at the boundary or mid-canvas.
 - Check: does each directed actor link reach the actor symbol?
 - Fix: extend/route the connector to the actor.
-- A line to a secondary actor is straight unless a straight line would run through another
-  shape; then it runs level from its use case and bends once towards the actor. That is
-  intended and **not** a violation; its last segment still aims at the actor's center (C1).
 
 ## C3 — Primary actors on the left, secondary actors on the right
 

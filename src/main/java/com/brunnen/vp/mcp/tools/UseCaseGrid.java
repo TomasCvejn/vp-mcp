@@ -49,23 +49,6 @@ final class UseCaseGrid {
       Map<String, String> actorParent,
       List<String[]> deps,
       Set<String> secondaryLinked) {
-    return plan(
-        useCases,
-        actorUseCases,
-        actorParent,
-        deps,
-        secondaryLinked,
-        actorOrder(actorUseCases, actorParent, bases(deps)));
-  }
-
-  /** {@link #plan} with the primary actors' rows in {@code order} (used by UseCaseLayout). */
-  static Map<String, Point> plan(
-      List<String> useCases,
-      Map<String, List<String>> actorUseCases,
-      Map<String, String> actorParent,
-      List<String[]> deps,
-      Set<String> secondaryLinked,
-      List<String> order) {
     Map<String, List<String>> bases = bases(deps);
     Map<String, Integer> column = columns(useCases, deps);
     Map<String, Integer> rank = new HashMap<>();
@@ -76,7 +59,7 @@ final class UseCaseGrid {
         java.util.Comparator.comparingInt(uc -> rank.getOrDefault(uc, Integer.MAX_VALUE));
     Grid grid = new Grid(secondaryLinked);
     Map<String, String> owner = owners(actorUseCases);
-    for (String actor : order) {
+    for (String actor : actorOrder(actorUseCases, actorParent, bases)) {
       for (String uc : basesOfOthersLast(actor, actorUseCases, bases, owner, given)) {
         if (!grid.cells.containsKey(uc)) {
           // Every directly linked use case opens a new row; a deeper one leaves the cells left of

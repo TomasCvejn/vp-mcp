@@ -127,18 +127,16 @@ final class UseCaseLayout {
 
   /**
    * Use case -> grid cell (x = column, y = row). A layout the grid rules make without any predicted
-   * problem stays as it is. Otherwise: two greedy searches, the rules' layout with primary actors'
-   * rows moved elsewhere in the order and the layered layout of {@link UseCaseSugiyama} (its family
-   * order matters: without it University kept 18 problems instead of 4), each polished by {@link
-   * #improve}; then simulated annealing ({@link #anneal}) from the better one, eight seeds in
-   * parallel, kept if it has fewer problems. Measured on nine test diagrams: Airline 98 -> 32,
-   * E-shop 92 -> 22, University 112 -> 10, Clinic 10 -> 0, with lines at most 20 % longer and at
-   * most one more column than the rules' layout.
+   * problem stays as it is. Otherwise two starts, the rules' layout and the layered layout of
+   * {@link UseCaseSugiyama} (its family order matters: without it University kept 18 problems
+   * instead of 10), are polished by {@link #improve}; then simulated annealing ({@link #anneal})
+   * from the better one, eight seeds in parallel, kept if it has fewer problems. Measured on nine
+   * test diagrams: Airline 98 -> 28, E-shop 92 -> 18, University 112 -> 12, Clinic 10 -> 0, lines
+   * at most 20 % longer and at most one column more than the rules' layout.
    */
   static Map<String, Point> plan(Input in) {
-    List<String> order =
-        UseCaseGrid.actorOrder(in.primary, in.actorParent, UseCaseGrid.bases(in.deps));
-    Map<String, Point> rules = replan(in, order);
+    Map<String, Point> rules =
+        UseCaseGrid.plan(in.useCases, in.primary, in.actorParent, in.deps, in.secondaryLinked());
     if (problems(in, rules) == 0) {
       return rules;
     }
@@ -147,10 +145,9 @@ final class UseCaseLayout {
       rowCap = Math.max(rowCap, c.y + 1);
     }
     final int cap = rowCap;
-    Map<String, Point> reordered = improve(in, reorder(in, order), cap);
+    Map<String, Point> polished = improve(in, rules, cap);
     Map<String, Point> layered = improve(in, UseCaseSugiyama.plan(in), cap);
-    Map<String, Point> greedy =
-        problems(in, layered) < problems(in, reordered) ? layered : reordered;
+    Map<String, Point> greedy = problems(in, layered) < problems(in, polished) ? layered : polished;
     if (problems(in, greedy) == 0) {
       return greedy;
     }
@@ -160,7 +157,7 @@ final class UseCaseLayout {
     List<Map<String, Point>> runs =
         java.util.stream.LongStream.rangeClosed(1, ANNEAL_RUNS)
             .parallel()
-            .mapToObj(seed -> improve(in, anneal(in, start, cap, ANNEAL_STEPS, seed), cap))
+            .mapToObj(seed -> anneal(in, start, cap, ANNEAL_STEPS, seed))
             .collect(java.util.stream.Collectors.toList());
     Map<String, Point> best = greedy;
     for (Map<String, Point> run : runs) {
@@ -169,41 +166,6 @@ final class UseCaseLayout {
       }
     }
     return best;
-  }
-
-  /** The rules' layout with a primary actor's rows moved elsewhere while that removes problems. */
-  private static Map<String, Point> reorder(Input in, List<String> start) {
-    List<String> order = start;
-    Map<String, Point> cells = replan(in, order);
-    int problems = problems(in, cells);
-    for (int pass = 0; pass < MAX_PASSES && problems > 0; pass++) {
-      List<String> bestOrder = null;
-      Map<String, Point> best = null;
-      int bestProblems = problems;
-      for (int i = 0; i < order.size(); i++) {
-        for (int j = 0; j < order.size(); j++) {
-          if (i == j) {
-            continue;
-          }
-          List<String> moved = new ArrayList<>(order);
-          moved.add(j, moved.remove(i));
-          Map<String, Point> candidate = replan(in, moved);
-          int p = problems(in, candidate);
-          if (p < bestProblems) {
-            best = candidate;
-            bestOrder = moved;
-            bestProblems = p;
-          }
-        }
-      }
-      if (best == null) {
-        break;
-      }
-      cells = best;
-      order = bestOrder;
-      problems = bestProblems;
-    }
-    return cells;
   }
 
   /**
@@ -348,11 +310,6 @@ final class UseCaseLayout {
     return false;
   }
 
-  private static Map<String, Point> replan(Input in, List<String> order) {
-    return UseCaseGrid.plan(
-        in.useCases, in.primary, in.actorParent, in.deps, in.secondaryLinked(), order);
-  }
-
   /** Every base stays left of the use case and every dependent right of it. */
   private static boolean keepsDirection(
       String uc, Point to, Map<String, Point> cells, List<String[]> deps) {
@@ -476,16 +433,19 @@ final class UseCaseLayout {
   }
 
   static int problems(Drawing d) {
-    int total = 0;
-    for (String issue : issues(d)) {
-      total += Integer.parseInt(issue.substring(0, issue.indexOf(' ')));
-    }
-    return total;
+    return scan(d, null);
   }
 
   /** Each problem of the drawing as "weight description". */
   static List<String> issues(Drawing d) {
     List<String> out = new ArrayList<>();
+    scan(d, out);
+    return out;
+  }
+
+  /** The weighted problem count, each problem also described in {@code out} unless null. */
+  private static int scan(Drawing d, List<String> out) {
+    int total = 0;
     List<Line2D> segments = new ArrayList<>();
     for (String[] l : d.lines) {
       segments.add(new Line2D.Double(d.center(l[0]), d.center(l[1])));
@@ -498,13 +458,13 @@ final class UseCaseLayout {
         if (!name.equals(l[0])
             && !name.equals(l[1])
             && hits(s, shape.getValue(), d.ellipses.contains(name))) {
-          out.add(THROUGH_SHAPE + " " + l[0] + " - " + l[1] + " through " + name);
+          total += note(out, THROUGH_SHAPE, l[0] + " - " + l[1] + " through " + name);
         }
       }
       for (Map.Entry<String, Rectangle2D> cap : d.captions.entrySet()) {
         String owner = cap.getKey();
         if (!owner.equals(l[0]) && !owner.equals(l[1]) && s.intersects(cap.getValue())) {
-          out.add(THROUGH_NAME + " " + l[0] + " - " + l[1] + " through name of " + owner);
+          total += note(out, THROUGH_NAME, l[0] + " - " + l[1] + " through name of " + owner);
         }
       }
     }
@@ -515,12 +475,18 @@ final class UseCaseLayout {
         String shared = shared(a, b);
         Point2D at = crossing(segments.get(i), segments.get(j));
         if (at != null && (shared == null || !grown(d.shapes.get(shared)).contains(at))) {
-          out.add(CROSSING + " " + a[0] + " - " + a[1] + " x " + b[0] + " - " + b[1]);
+          total += note(out, CROSSING, a[0] + " - " + a[1] + " x " + b[0] + " - " + b[1]);
         }
       }
     }
-    familyApart(d, d.actorParent, out);
-    return out;
+    return total + familyApart(d, d.actorParent, out);
+  }
+
+  private static int note(List<String> out, int weight, String what) {
+    if (out != null) {
+      out.add(weight + " " + what);
+    }
+    return weight;
   }
 
   /** Total line length: among equally good layouts the shorter one reads easier. */
@@ -589,7 +555,8 @@ final class UseCaseLayout {
   }
 
   /** Actors standing between a generalization child and its parent that are not its family. */
-  private static void familyApart(Drawing d, Map<String, String> parent, List<String> out) {
+  private static int familyApart(Drawing d, Map<String, String> parent, List<String> out) {
+    int total = 0;
     for (Map.Entry<String, String> g : parent.entrySet()) {
       Rectangle2D child = d.shapes.get(g.getKey());
       Rectangle2D up = d.shapes.get(g.getValue());
@@ -598,7 +565,7 @@ final class UseCaseLayout {
       }
       if (up.getCenterY() > child.getCenterY()) {
         // Generalization arrows usually point up: the parent above its children.
-        out.add(PARENT_BELOW + " " + g.getValue() + " below its child " + g.getKey());
+        total += note(out, PARENT_BELOW, g.getValue() + " below its child " + g.getKey());
       }
       double lo = Math.min(child.getCenterY(), up.getCenterY());
       double hi = Math.max(child.getCenterY(), up.getCenterY());
@@ -608,11 +575,15 @@ final class UseCaseLayout {
             && y < hi
             && !other.equals(g.getKey())
             && !descends(other, g.getValue(), parent)) {
-          out.add(
-              UNRELATED_BETWEEN + " " + other + " between " + g.getKey() + " and " + g.getValue());
+          total +=
+              note(
+                  out,
+                  UNRELATED_BETWEEN,
+                  other + " between " + g.getKey() + " and " + g.getValue());
         }
       }
     }
+    return total;
   }
 
   /**

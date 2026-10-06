@@ -144,47 +144,6 @@ final class LayoutCheck {
   }
 
   /**
-   * Where a line from a use case to a secondary actor should bend, or null when the straight line
-   * is clear or no bend is. A bent line runs level from the use case to the bend, then on to the
-   * actor. Bends are tried from {@code maxX} (just outside the boundary) leftwards in 20 px steps,
-   * so the line bends as late as it can; the last segment must miss every obstacle and pass above
-   * the actor's name caption (a steep segment from below ended on the caption, not on the figure).
-   *
-   * @param from the use case's center
-   * @param to the actor's center
-   * @param obstacles every other shape
-   * @param caption the actor's name caption under its figure
-   */
-  static Point secondaryBend(
-      Point from, Point to, List<Box> obstacles, Rectangle2D caption, int minX, int maxX) {
-    if (clear(from, to, obstacles, caption)) {
-      return null;
-    }
-    for (int x = maxX; x >= minX; x -= 20) {
-      Point bend = new Point(x, from.y);
-      if (clear(from, bend, obstacles, caption) && clear(bend, to, obstacles, caption)) {
-        return bend;
-      }
-    }
-    // No clear bend: a forced one ran through more than the straight line (E-shop).
-    return null;
-  }
-
-  private static boolean clear(Point a, Point b, List<Box> obstacles, Rectangle2D caption) {
-    Line2D segment = new Line2D.Double(a, b);
-    if (segment.intersects(caption)) {
-      return false;
-    }
-    Area stroke = new Area(new BasicStroke(1f).createStrokedShape(segment));
-    for (Box box : obstacles) {
-      if (!box.container && intersect(stroke, box.area(GRAZE))) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
    * Where to put a w x h label of the line {@code own} so that it is clearly that line's: just
    * beside it, at least {@code LABEL_GAP} px off every one of the {@code obstacles} (shapes,
    * captions, labels placed before) and not across another line. Spots beside the middle come
@@ -196,7 +155,7 @@ final class LayoutCheck {
    * @return the label's top-left corner
    */
   static Point labelSpot(Line2D own, List<Line2D> others, List<Box> obstacles, int w, int h) {
-    Point best = labelSpotAt(own, 0.5, others, w, h);
+    Point best = labelSpotAt(own, 0.5, others, w, h, false);
     double bestMargin = Double.NEGATIVE_INFINITY;
     for (double t : new double[] {0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8}) {
       for (boolean otherSide : new boolean[] {false, true}) {
@@ -237,10 +196,6 @@ final class LayoutCheck {
       }
     }
     return true;
-  }
-
-  private static Point labelSpotAt(Line2D own, double t, List<Line2D> others, int w, int h) {
-    return labelSpotAt(own, t, others, w, h, false);
   }
 
   /** Beside the point at {@code t} of the line, on the side farther from the others (or not). */
