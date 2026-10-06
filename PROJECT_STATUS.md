@@ -413,6 +413,50 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   back from `issues` text. Offline after the cuts: Airline 28 (line length 16482, below the
   rules' 16577), E-shop 18, University 12, Clinic 0, clean ones unchanged; 1.0-1.8 s.
   Earlier entries describing bends and reordering are history.
+- **Actor side by role (2026-10-06)**: reviewing an external SmartTaxIS export showed Premium
+  User (a generalization child that starts ManageMembership and receives
+  SendRenewalNotification) pushed to the right, away from its parent, and `checkUseCaseDiagram`
+  reporting C3 on the layout the tool had just made (layout sent «system» actors right, the
+  check did not). One pure rule now decides both, `UseCaseCheck.rightSide()`
+  (`UseCaseCheckTest`): an actor that starts any use case is primary (left), even if another use
+  case calls it; an actor that is only ever called goes right, and so does every «system» or
+  «time» actor (user's choice), even one that starts a use case; a generalization tree stays on
+  one side, left when any unstereotyped member is primary. Layout and `addSystemBoundary` read
+  it through `readCheck` (shared with `checkUseCaseDiagram`); `isSecondary` is gone.
+  Conventions C3 and the tool descriptions say the same. The `isSecondary` mention above is
+  history.
+- **Optimizer pen margin (2026-10-06)**: on SmartTaxIS the optimizer kept CreateOrder -> Navigate
+  0.3 px outside SearchForTaxis's 2 px graze inset, and checkLayout (1 px pen between VP's
+  whole-pixel line ends) reported a line through the shape. `UseCaseLayout.hits` now uses an inset
+  of `GRAZE - PEN` = 1 px (`grown` for crossings keeps 2 px, as checkLayout does). Clinic and Bike
+  Sharing tests unchanged; the other benchmark diagrams' specs are not in the repo, so they were
+  not re-measured.
+- **Right-only base use cases go right (2026-10-06)**: the review of the rebuilt SmartTaxIS found
+  all 3 crossings on Time's lines: with «time»/«system» actors on the right, their base use cases
+  (column 0) sat far left, so each line crossed the whole boundary. `UseCaseGrid.columns` now
+  moves a use case without a base whose actor lines all go to the right (`UseCaseGrid.rightOnly`)
+  to the deepest column the diagram has without this rule; its dependents follow. Use cases that
+  already have a base keep their column (moving them too widened the reference SmartTaxIS by a
+  column). Grid, optimizer and Sugiyama share it via `Input.columns()`. Offline on the review
+  SmartTaxIS: RenewMemberships 0 -> 2, ProvidePayment 1 -> 3, no crossing on Time's lines
+  (3 others remain, weighted 12 as before).
+- **Longer annealing runs (2026-10-06)**: those 3 crossings were not structural. Offline on the
+  review SmartTaxIS (`UseCaseLayoutTest.reviewSmartTaxis`): 8 runs x 4000 steps froze at 12
+  points (line length 13844) because the temperature fell from 20 to 0.01 too fast; 8 x 16000
+  reach 4 points, 1 crossing (12892) in 2.5 s instead of 1.9 s; 32 or 64 runs of 4000 stay at
+  8; 48 x 30000 also end at 4, so the last crossing (Registered User - CancelOrder x Free User -
+  BuyPremium) looks structural. `ANNEAL_STEPS` 4000 -> 16000. This reverses the earlier "more
+  seeds beat longer runs" finding for this diagram.
+- **Benchmark of these changes (2026-10-06)**: the ten diagrams' specs were extracted read-only
+  from `pokus.vpp` (SQLite: MODEL_ELEMENT / DIAGRAM_ELEMENT definitions; extractor matched the
+  transcript specs of Bike Sharing, City Library and Fitness Center exactly; kept only in
+  `target/benchmark-specs/`). Offline, same inputs, HEAD vs. now (points / line length / grid /
+  time, sequential): E-shop 22 -> 18 / 16929 -> 15860 / 3x19 -> 3x18 / 4.5 -> 9.7 s; Airline
+  28 -> 20 / 19918 -> 16526 / 4x13 -> 3x13 / 1.9 -> 5.3 s; University 8 -> 10 (same 2
+  crossings, plus "parent below child") / 15087 -> 13624 / 3x15 -> 3x14 / 2.1 -> 5.4 s; the
+  other seven stay at 0 (Bike Sharing and Three Bases one column wider: Time's use case now
+  sits next to Time). Live in a fresh project all ten rebuilt exactly as predicted:
+  E-shop 4 crossings, Airline 5, University 2, the rest `checkLayout` OK, no C3 anywhere.
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

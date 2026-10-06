@@ -29,9 +29,13 @@ be drawn **all the way to the actor**, not stopping short at the boundary or mid
 ## C3 — Primary actors on the left, secondary actors on the right
 
 Primary actors sit on the **left** of the system boundary; secondary actors sit on the
-**right**.
-- Check: are all primary actors left of the boundary and all secondary actors right?
-- Fix: move secondary actors to the right column, primary actors to the left.
+**right**. Actors with the «system» or «time» stereotype sit on the right too, even when
+they start a use case. Any other actor that starts a use case is primary, even if another
+use case calls it; an actor that the system only ever calls is secondary. A generalization
+tree stays on one side: left when any of its actors without those stereotypes is primary.
+- Check: are all primary actors left of the boundary, and all secondary, «system» and
+  «time» actors right?
+- Fix: move those actors to the right column, primary actors to the left.
 
 ## C4 — A Time actor carries the «time» stereotype
 

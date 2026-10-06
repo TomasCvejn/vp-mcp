@@ -13,14 +13,14 @@ public class UseCaseCheckTest {
 
   private static final double[] IN = {360, 100, 160, 60};
 
-  /** Bike sharing as built: boundary 300..940, primary actors left, the gateway right. */
+  /** Bike sharing as built: boundary 300..940, the rider left, Time and the gateway right. */
   private static UseCaseCheck clean() {
     UseCaseCheck c = new UseCaseCheck();
     c.boundaries.add(new Object[] {"Bike Sharing System", 300.0, 60.0, 640.0, 770.0});
     c.actors.put("Rider", Collections.emptyList());
     c.actorX.put("Rider", 220.0);
     c.actors.put("Time", Collections.singletonList("time"));
-    c.actorX.put("Time", 220.0);
+    c.actorX.put("Time", 1030.0);
     c.actors.put("Payment Gateway", Collections.singletonList("system"));
     c.actorX.put("Payment Gateway", 1030.0);
     for (String uc : Arrays.asList("Return Bike", "Charge Fee", "Process Payment", "Report")) {
@@ -72,7 +72,10 @@ public class UseCaseCheckTest {
         out.contains("SYN5: 'Rent' has no named extension point for the extend from 'Unused'"));
     assertTrue(all, out.contains("C4/BP3: actor 'Time' has no «time» stereotype"));
     assertTrue(
-        all, out.contains("C3: secondary actor 'Payment Gateway' is not right of the boundary"));
+        all,
+        out.contains(
+            "C3: secondary, «system» or «time» actor 'Payment Gateway' is not right of the"
+                + " boundary"));
     assertTrue(
         all, out.contains("C3: primary actor 'Bike Sharing System' is not left of the boundary"));
     assertTrue(
@@ -86,6 +89,30 @@ public class UseCaseCheckTest {
                 + " base"));
     assertTrue(all, out.contains("use case 'Lonely' has no relationship"));
     assertTrue(all, out.contains("actor 'Idle' has no relationship"));
+  }
+
+  @Test
+  public void sideFollowsTheRoleAndKeepsGeneralizationTreesTogether() {
+    UseCaseCheck c = clean();
+    for (String a : Arrays.asList("Registered", "Premium", "Bank", "Courier", "Van Courier")) {
+      c.actors.put(a, Collections.emptyList());
+    }
+    c.actors.put("Bank", Collections.singletonList("system"));
+    // Premium starts one use case and is called by another; Registered is only called.
+    c.associations.add(new String[] {"Premium", "Return Bike", "false", "false"});
+    c.associations.add(new String[] {"Report", "Premium", "false", "true"});
+    c.associations.add(new String[] {"Report", "Registered", "false", "true"});
+    c.generalizations.add(new String[] {"Premium", "Registered"});
+    // A «system» actor goes right even when it starts a use case.
+    c.associations.add(new String[] {"Bank", "Charge Fee", "false", "false"});
+    // A tree whose only linked member is called goes right as a whole.
+    c.associations.add(new String[] {"Report", "Courier", "false", "true"});
+    c.generalizations.add(new String[] {"Van Courier", "Courier"});
+
+    assertEquals(
+        new java.util.HashSet<>(
+            Arrays.asList("Time", "Payment Gateway", "Bank", "Courier", "Van Courier")),
+        c.rightSide());
   }
 
   @Test

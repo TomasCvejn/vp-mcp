@@ -49,6 +49,9 @@ final class UseCaseLayout {
   private static final int UNRELATED_BETWEEN = 6;
   private static final int PARENT_BELOW = 2;
   private static final double GRAZE = 2;
+  // checkLayout strokes a line with a 1 px pen between VP's whole-pixel ends, so a predicted line
+  // clearing a shape's GRAZE inset by less than this is still reported there (SmartTaxIS: 0.3 px).
+  private static final double PEN = 1;
   private static final int MAX_PASSES = 30;
   private static final int ANNEAL_RUNS = 8;
   // Room the searches may use: a dependent use case at most one column right of its depth, and
@@ -57,7 +60,10 @@ final class UseCaseLayout {
   private static final int COLUMN_SLACK = 1;
   // Line length in the annealing cost: 300 px weigh one problem point.
   private static final double LENGTH_PER_POINT = 300;
-  private static final int ANNEAL_STEPS = 4000;
+  // With 4000 steps the temperature fell so fast that the review SmartTaxIS froze at 3 crossings
+  // (12 points, line length 13844); 16000 reach 1 crossing (4, 12892) in 2.5 s instead of 1.9.
+  // More runs of 4000 did not (32 runs: 8 points). Runs stop early once a layout is clean.
+  private static final int ANNEAL_STEPS = 16000;
 
   private UseCaseLayout() {}
 
@@ -107,6 +113,11 @@ final class UseCaseLayout {
         out.addAll(ucs);
       }
       return out;
+    }
+
+    /** Use case -> its grid column ({@link UseCaseGrid#columns}). */
+    Map<String, Integer> columns() {
+      return UseCaseGrid.columns(useCases, deps, UseCaseGrid.rightOnly(primary, secondaryLinked()));
     }
   }
 
@@ -174,7 +185,7 @@ final class UseCaseLayout {
    * problems.
    */
   static Map<String, Point> improve(Input in, Map<String, Point> start, int rowCap) {
-    Map<String, Integer> depth = UseCaseGrid.columns(in.useCases, in.deps);
+    Map<String, Integer> depth = in.columns();
     Map<String, Point> cells = new LinkedHashMap<>(start);
     int problems = problems(in, cells);
     for (int pass = 0; pass < MAX_PASSES && problems > 0; pass++) {
@@ -244,7 +255,7 @@ final class UseCaseLayout {
   static Map<String, Point> anneal(
       Input in, Map<String, Point> start, int rowCap, int steps, long seed) {
     java.util.Random random = new java.util.Random(seed);
-    Map<String, Integer> depth = UseCaseGrid.columns(in.useCases, in.deps);
+    Map<String, Integer> depth = in.columns();
     Map<String, Point> cells = new LinkedHashMap<>(start);
     double cost = cost(in, cells);
     Map<String, Point> best = cells;
@@ -514,15 +525,16 @@ final class UseCaseLayout {
         r.getX() - GRAZE, r.getY() - GRAZE, r.getWidth() + 2 * GRAZE, r.getHeight() + 2 * GRAZE);
   }
 
-  /** The segment enters the shape by more than GRAZE px (an ellipse, or a rectangle). */
+  /** The segment enters the shape by more than GRAZE - PEN px (an ellipse, or a rectangle). */
   static boolean hits(Line2D s, Rectangle2D r, boolean ellipse) {
+    double inset = GRAZE - PEN;
     if (!ellipse) {
       return s.intersects(
-          r.getX() + GRAZE, r.getY() + GRAZE, r.getWidth() - 2 * GRAZE, r.getHeight() - 2 * GRAZE);
+          r.getX() + inset, r.getY() + inset, r.getWidth() - 2 * inset, r.getHeight() - 2 * inset);
     }
     // Scale the ellipse to the unit circle: the segment hits it when it comes nearer than 1.
-    double rx = r.getWidth() / 2 - GRAZE;
-    double ry = r.getHeight() / 2 - GRAZE;
+    double rx = r.getWidth() / 2 - inset;
+    double ry = r.getHeight() / 2 - inset;
     Line2D unit =
         new Line2D.Double(
             (s.getX1() - r.getCenterX()) / rx,

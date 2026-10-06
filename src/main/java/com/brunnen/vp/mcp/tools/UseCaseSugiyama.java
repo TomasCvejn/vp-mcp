@@ -26,7 +26,7 @@ final class UseCaseSugiyama {
 
   /** Use case -> grid cell (x = column, y = row). */
   static Map<String, Point> plan(UseCaseLayout.Input in) {
-    Map<String, Integer> depth = UseCaseGrid.columns(in.useCases, in.deps);
+    Map<String, Integer> depth = in.columns();
     int columns = 1;
     for (int d : depth.values()) {
       columns = Math.max(columns, d + 1);

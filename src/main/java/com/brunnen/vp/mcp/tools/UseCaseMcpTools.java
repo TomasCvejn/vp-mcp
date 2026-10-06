@@ -594,7 +594,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       description =
           "Check a use case diagram's model against the checklist items it answers for sure:"
               + " use cases inside one named boundary, named extension points, primary actors"
-              + " left and secondary right, «time» on Time, arrowheads only at secondary actors,"
+              + " left and secondary, «system» and «time» actors right, «time» on Time, arrowheads only at secondary actors,"
               + " includes with one base, elements without relationships, plus exact counts."
               + " Pass its output to the diagram reviewer as ground truth")
   public String checkUseCaseDiagram(String diagramName) {
@@ -603,60 +603,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
           () -> {
             IUseCaseDiagramUIModel diagram =
                 requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
-            UseCaseCheck c = new UseCaseCheck();
-            for (IDiagramElement de : diagram.toDiagramElementArray()) {
-              IModelElement m = de.getModelElement();
-              if (m instanceof IActor) {
-                List<String> stereotypes = new ArrayList<>();
-                com.vp.plugin.model.IStereotype[] sts = m.toStereotypeModelArray();
-                for (com.vp.plugin.model.IStereotype st :
-                    sts != null ? sts : new com.vp.plugin.model.IStereotype[0]) { // null if none
-                  stereotypes.add(st.getName());
-                }
-                c.actors.put(m.getName(), stereotypes);
-                c.actorX.put(m.getName(), de.getX() + de.getWidth() / 2.0);
-              } else if (m instanceof IUseCase) {
-                // Inside is decided by geometry: use case shapes are not child shapes of the
-                // boundary, and the model owner is wrong for a shared use case.
-                c.useCases.put(
-                    m.getName(),
-                    new double[] {de.getX(), de.getY(), de.getWidth(), de.getHeight()});
-              } else if (m instanceof ISystem) {
-                c.boundaries.add(
-                    new Object[] {
-                      m.getName(),
-                      (double) de.getX(),
-                      (double) de.getY(),
-                      (double) de.getWidth(),
-                      (double) de.getHeight()
-                    });
-              } else if (m instanceof IAssociation) {
-                IAssociation a = (IAssociation) m;
-                c.associations.add(
-                    new String[] {
-                      a.getFrom().getName(),
-                      a.getTo().getName(),
-                      String.valueOf(navigable((IAssociationEnd) a.getFromEnd())),
-                      String.valueOf(navigable((IAssociationEnd) a.getToEnd()))
-                    });
-              } else if (m instanceof IInclude) {
-                IRelationship r = (IRelationship) m; // from = base, to = included
-                c.includes.add(new String[] {r.getFrom().getName(), r.getTo().getName()});
-              } else if (m instanceof IExtend) {
-                IExtend e = (IExtend) m; // from = base, to = extending
-                IExtensionPoint ep = e.getExtensionPoint();
-                c.extendsList.add(
-                    new String[] {
-                      e.getTo().getName(),
-                      e.getFrom().getName(),
-                      ep != null && ep.getName() != null ? ep.getName() : ""
-                    });
-              } else if (m instanceof IGeneralization) {
-                IRelationship r = (IRelationship) m; // from = parent, to = child
-                c.generalizations.add(new String[] {r.getTo().getName(), r.getFrom().getName()});
-              }
-            }
-            List<String> out = c.run();
+            List<String> out = readCheck(diagram).run();
             return out.get(0)
                 + "\n"
                 + (out.size() == 1 ? "OK" : String.join("\n", out.subList(1, out.size())))
@@ -669,6 +616,63 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     }
   }
 
+  /** The model facts of a use case diagram that {@link UseCaseCheck} works on. On the EDT. */
+  private static UseCaseCheck readCheck(IUseCaseDiagramUIModel diagram) {
+    UseCaseCheck c = new UseCaseCheck();
+    for (IDiagramElement de : diagram.toDiagramElementArray()) {
+      IModelElement m = de.getModelElement();
+      if (m instanceof IActor) {
+        List<String> stereotypes = new ArrayList<>();
+        com.vp.plugin.model.IStereotype[] sts = m.toStereotypeModelArray();
+        for (com.vp.plugin.model.IStereotype st :
+            sts != null ? sts : new com.vp.plugin.model.IStereotype[0]) { // null if none
+          stereotypes.add(st.getName());
+        }
+        c.actors.put(m.getName(), stereotypes);
+        c.actorX.put(m.getName(), de.getX() + de.getWidth() / 2.0);
+      } else if (m instanceof IUseCase) {
+        // Inside is decided by geometry: use case shapes are not child shapes of the
+        // boundary, and the model owner is wrong for a shared use case.
+        c.useCases.put(
+            m.getName(), new double[] {de.getX(), de.getY(), de.getWidth(), de.getHeight()});
+      } else if (m instanceof ISystem) {
+        c.boundaries.add(
+            new Object[] {
+              m.getName(),
+              (double) de.getX(),
+              (double) de.getY(),
+              (double) de.getWidth(),
+              (double) de.getHeight()
+            });
+      } else if (m instanceof IAssociation) {
+        IAssociation a = (IAssociation) m;
+        c.associations.add(
+            new String[] {
+              a.getFrom().getName(),
+              a.getTo().getName(),
+              String.valueOf(navigable((IAssociationEnd) a.getFromEnd())),
+              String.valueOf(navigable((IAssociationEnd) a.getToEnd()))
+            });
+      } else if (m instanceof IInclude) {
+        IRelationship r = (IRelationship) m; // from = base, to = included
+        c.includes.add(new String[] {r.getFrom().getName(), r.getTo().getName()});
+      } else if (m instanceof IExtend) {
+        IExtend e = (IExtend) m; // from = base, to = extending
+        IExtensionPoint ep = e.getExtensionPoint();
+        c.extendsList.add(
+            new String[] {
+              e.getTo().getName(),
+              e.getFrom().getName(),
+              ep != null && ep.getName() != null ? ep.getName() : ""
+            });
+      } else if (m instanceof IGeneralization) {
+        IRelationship r = (IRelationship) m; // from = parent, to = child
+        c.generalizations.add(new String[] {r.getTo().getName(), r.getFrom().getName()});
+      }
+    }
+    return c;
+  }
+
   private static boolean navigable(IAssociationEnd end) {
     return end != null && end.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE;
   }
@@ -679,7 +683,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
           "Lay out a use case diagram by the house conventions: use cases in a grid (column by"
               + " include/extend depth, rows grouped per primary actor, a generalization child"
               + " right after its parent), then wrap them in a system boundary named systemName,"
-              + " place actors (primary left, secondary right) and re-anchor all lines. Follow"
+              + " place actors (primary left; secondary, «system» and «time» right) and re-anchor all lines. Follow"
               + " with exportDiagramImage and checkLayout")
   public String layoutUseCaseDiagram(String diagramName, String systemName) {
     return layout(diagramName, systemName, null);
@@ -816,6 +820,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     java.util.Map<String, List<String>> actorUseCases = new java.util.LinkedHashMap<>();
     java.util.Map<String, List<String>> secondaryUseCases = new java.util.LinkedHashMap<>();
     java.util.Set<String> stereotyped = new java.util.HashSet<>();
+    java.util.Set<String> right = readCheck(diagram).rightSide();
     for (IModelElement actor : actors) {
       List<String> linked = new ArrayList<>();
       for (IAssociation a : associations) {
@@ -824,7 +829,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
           linked.add(other.getName());
         }
       }
-      (isSecondary(actor, associations) ? secondaryUseCases : actorUseCases)
+      (right.contains(actor.getName()) ? secondaryUseCases : actorUseCases)
           .put(actor.getName(), linked);
       if (actor.stereotypeCount() > 0) {
         stereotyped.add(actor.getName());
@@ -868,7 +873,7 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       description =
           "Wrap all use cases of a use case diagram in a labeled system boundary rectangle "
               + "and move actors outside it: primary (initiating) actors left, secondary "
-              + "(system-called) actors right. layoutUseCaseDiagram already does this after"
+              + "(system-called), «system» and «time» actors right. layoutUseCaseDiagram already does this after"
               + " placing the use cases")
   public String addSystemBoundary(String diagramName, String systemName) {
     try {
@@ -963,9 +968,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             int gap = UseCaseLayout.ACTOR_GAP;
             List<ActorSlot> leftSlots = new ArrayList<>();
             List<ActorSlot> rightSlots = new ArrayList<>();
+            java.util.Set<String> right = readCheck(diagram).rightSide();
             for (IDiagramElement actorDe : actorDes) {
               IModelElement actorModel = actorDe.getModelElement();
-              boolean secondary = isSecondary(actorModel, associations);
+              boolean secondary = right.contains(actorModel.getName());
               int sum = 0;
               int count = 0;
               for (IAssociation a : associations) {
@@ -1009,32 +1015,6 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     } catch (Exception e) {
       return "Error adding system boundary: " + e.getMessage();
     }
-  }
-
-  /**
-   * Secondary actor = the system calls it: a linked use case points a navigable arrow at it, or it
-   * carries the «system» stereotype (any case). Everything else is a primary actor.
-   */
-  static boolean isSecondary(IModelElement actor, List<IAssociation> associations) {
-    if (actor instanceof IActor) {
-      for (String st : ((IActor) actor).toStereotypeArray()) {
-        if ("system".equalsIgnoreCase(st)) {
-          return true;
-        }
-      }
-    }
-    for (IAssociation a : associations) {
-      IAssociationEnd end = null;
-      if (sameElement(a.getFrom(), actor)) {
-        end = (IAssociationEnd) a.getFromEnd();
-      } else if (sameElement(a.getTo(), actor)) {
-        end = (IAssociationEnd) a.getToEnd();
-      }
-      if (end != null && end.getNavigable() == IAssociationEnd.NAVIGABLE_NAVIGABLE) {
-        return true;
-      }
-    }
-    return false;
   }
 
   /** The element at the other end of {@code rel} from {@code element}, or null if not attached. */

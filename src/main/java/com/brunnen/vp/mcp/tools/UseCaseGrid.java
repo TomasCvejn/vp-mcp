@@ -15,7 +15,9 @@ import java.util.Set;
  *
  * <ul>
  *   <li>column = 0 for a use case nobody includes and that extends nothing, otherwise one more than
- *       its base (include: base -> included, extend: base -> extending);
+ *       its base (include: base -> included, extend: base -> extending); a column 0 use case whose
+ *       actor lines all go to actors on the right moves to the deepest column instead, so its lines
+ *       do not cross the whole diagram;
  *   <li>primary actors are walked by number of use cases (most first, then by name), a
  *       generalization child right after its parent and an actor whose use case depends on another
  *       actor's use case right after that actor; each gets consecutive rows (use cases in the given
@@ -50,7 +52,8 @@ final class UseCaseGrid {
       List<String[]> deps,
       Set<String> secondaryLinked) {
     Map<String, List<String>> bases = bases(deps);
-    Map<String, Integer> column = columns(useCases, deps);
+    Map<String, Integer> column =
+        columns(useCases, deps, rightOnly(actorUseCases, secondaryLinked));
     Map<String, Integer> rank = new HashMap<>();
     for (String uc : useCases) {
       rank.putIfAbsent(uc, rank.size());
@@ -122,14 +125,33 @@ final class UseCaseGrid {
     return bases;
   }
 
-  /** use case -> its column: 0, or one more than its deepest base. */
-  static Map<String, Integer> columns(List<String> useCases, List<String[]> deps) {
+  /**
+   * use case -> its column: one more than its deepest base, or 0 without a base; a use case in
+   * {@code rightOnly} without a base takes the deepest column the diagram has without that rule.
+   */
+  static Map<String, Integer> columns(
+      List<String> useCases, List<String[]> deps, Set<String> rightOnly) {
     Map<String, List<String>> bases = bases(deps);
+    Map<String, Integer> plain = new HashMap<>();
+    int deepest = 0;
+    for (String uc : useCases) {
+      deepest = Math.max(deepest, column(uc, bases, plain, new HashSet<>(), rightOnly, 0));
+    }
     Map<String, Integer> column = new HashMap<>();
     for (String uc : useCases) {
-      column(uc, bases, column, new HashSet<>());
+      column(uc, bases, column, new HashSet<>(), rightOnly, deepest);
     }
     return column;
+  }
+
+  /** Use cases with a line to an actor on the right and none to an actor on the left. */
+  static Set<String> rightOnly(
+      Map<String, List<String>> actorUseCases, Set<String> secondaryLinked) {
+    Set<String> out = new HashSet<>(secondaryLinked);
+    for (List<String> ucs : actorUseCases.values()) {
+      out.removeAll(ucs);
+    }
+    return out;
   }
 
   /** Placed cells plus the rows that actor lines run along. */
@@ -208,7 +230,12 @@ final class UseCaseGrid {
   }
 
   private static int column(
-      String uc, Map<String, List<String>> bases, Map<String, Integer> memo, Set<String> path) {
+      String uc,
+      Map<String, List<String>> bases,
+      Map<String, Integer> memo,
+      Set<String> path,
+      Set<String> rightOnly,
+      int rightFloor) {
     Integer known = memo.get(uc);
     if (known != null) {
       return known;
@@ -216,9 +243,12 @@ final class UseCaseGrid {
     int col = 0;
     if (path.add(uc)) { // an include/extend cycle stops here instead of recursing forever
       for (String base : bases.getOrDefault(uc, new ArrayList<>())) {
-        col = Math.max(col, column(base, bases, memo, path) + 1);
+        col = Math.max(col, column(base, bases, memo, path, rightOnly, rightFloor) + 1);
       }
       path.remove(uc);
+    }
+    if (col == 0 && rightOnly.contains(uc)) {
+      col = rightFloor;
     }
     memo.put(uc, col);
     return col;
