@@ -5,6 +5,11 @@
 ### Overview
 Replaced Spring Boot/Spring AI MCP stack with a custom lightweight MCP server using Undertow HTTP + Jackson. The server runs on Java 11 (compatible with Visual Paradigm's JVM) and implements the MCP JSON-RPC protocol over SSE transport.
 
+### Origin
+Started as orgatex/visual-paradigm-mcp-plugin (Manoel Brunnen), continued in the
+thanhtrnnn/vp-mcp fork by quant (Visual Paradigm API calls), then detached as a proof of
+concept. Recorded in the README's Origin section.
+
 ### Architecture
 
 - **MCP Server**: Custom `McpServer.java` using Undertow embedded HTTP server
@@ -457,6 +462,13 @@ parallel → fix → repeat. Plugin fixes found along the way (verified live on 
   other seven stay at 0 (Bike Sharing and Three Bases one column wider: Time's use case now
   sits next to Time). Live in a fresh project all ten rebuilt exactly as predicted:
   E-shop 4 crossings, Airline 5, University 2, the rest `checkLayout` OK, no C3 anywhere.
+- **Labels on actor lines (2026-10-06)**: a `links` or `calls` entry of the spec takes an optional
+  third item, the label shown on the line (checklist BP3a: when a Time actor triggers the use
+  case, `["Time", "Send Loan Reminders", "every night"]`). buildUseCaseDiagram names the
+  association with `nameUseCaseRelationship`; `placedLabel` (shared by layoutUseCaseDiagram and
+  checkLayout) now covers named associations on use case diagrams besides «include»/«extend», so
+  the label is put beside its line and checked for collisions. Include/extend/generalization
+  labels were skipped (extend has its extension point; no use seen).
 
 ### Class diagram editing, audit and project tools (server version 1.27.8)
 

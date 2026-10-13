@@ -5,6 +5,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -89,6 +90,11 @@ final class UseCaseLayout {
 
     /** Actors with a stereotype (a second caption line). */
     final Set<String> stereotyped;
+
+    /** Room between the boundary and the left / right actor column ({@link #actorGap}). */
+    int leftGap = ACTOR_GAP;
+
+    int rightGap = ACTOR_GAP;
 
     Input(
         List<String> useCases,
@@ -363,8 +369,8 @@ final class UseCaseLayout {
       minY = Math.min(minY, r.getY());
       maxX = Math.max(maxX, r.getMaxX());
     }
-    placeColumn(d, in, in.primary, minX - PAD - ACTOR_GAP - ACTOR_W, minY, true);
-    placeColumn(d, in, in.secondary, maxX + PAD + ACTOR_GAP, minY, false);
+    placeColumn(d, in, in.primary, minX - PAD - in.leftGap - ACTOR_W, minY, true);
+    placeColumn(d, in, in.secondary, maxX + PAD + in.rightGap, minY, false);
     for (Map<String, List<String>> side : java.util.Arrays.asList(in.primary, in.secondary)) {
       for (Map.Entry<String, List<String>> e : side.entrySet()) {
         for (String uc : e.getValue()) {
@@ -429,6 +435,20 @@ final class UseCaseLayout {
         d.actors.add(a);
       }
     }
+  }
+
+  /**
+   * Room between the boundary and an actor column: ACTOR_GAP, or enough for the widest label on
+   * those actors' lines to sit outside the boundary, estimated like a caption (VP sizes labels only
+   * when it draws) plus the label's gaps. A line from the last use case column to a right actor
+   * runs only PAD px inside the boundary: Clinic's "next-day list" straddled its edge.
+   */
+  static int actorGap(Collection<String> labels) {
+    int gap = ACTOR_GAP;
+    for (String label : labels) {
+      gap = Math.max(gap, (int) caption(label, false, new Rectangle2D.Double()).getWidth() + 20);
+    }
+    return gap;
   }
 
   /** The estimated name caption under an actor figure (VP lays captions out only on render). */

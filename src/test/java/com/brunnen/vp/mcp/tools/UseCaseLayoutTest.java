@@ -205,6 +205,15 @@ public class UseCaseLayoutTest {
         UseCaseLayout.issues(UseCaseLayout.drawing(in, UseCaseLayout.plan(in))));
   }
 
+  /** A label longer than the default gap holds pushes its side's actor column out. */
+  @Test
+  public void actorGapMakesRoomForTheWidestLabel() {
+    assertEquals(UseCaseLayout.ACTOR_GAP, UseCaseLayout.actorGap(Collections.emptyList()));
+    assertEquals(UseCaseLayout.ACTOR_GAP, UseCaseLayout.actorGap(Arrays.asList("daily")));
+    // Clinic: "next-day list" (13 characters, estimated 101 px) straddled the boundary edge.
+    assertEquals(121, UseCaseLayout.actorGap(Arrays.asList("drug code", "next-day list")));
+  }
+
   @Test
   public void planRemovesThePredictedProblems() {
     UseCaseLayout.Input in = clinic();

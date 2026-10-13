@@ -102,6 +102,47 @@ public class LayoutCheckTest {
             own, Collections.singletonList(above), Collections.emptyList(), 80, 16));
   }
 
+  /**
+   * City Library after moving Time (live): Time's line crosses the boundary's right edge (x 940)
+   * near its middle, and the label was put at (908, 772), across that edge.
+   */
+  @Test
+  public void labelOfAnActorLineKeepsOffTheBoundaryEdge() {
+    Box boundary = new Box("City Library System", false, true, 300, 60, 640, 860);
+    Line line = new Line("Assoc Time -> Send", "Time", "Send", pt(995, 684), pt(849, 822));
+    assertEquals(
+        Collections.singletonList(
+            "straddles boundary: 'label of Assoc Time -> Send' crosses the edge of"
+                + " 'City Library System'"),
+        check(Arrays.asList(boundary, Box.label(line.name, 908, 772, 79, 16)), line));
+
+    // The rest of that corner as checkLayout and the label placement see it.
+    List<Box> around =
+        Arrays.asList(
+            boundary,
+            uc("Charge Late Fine", 740, 730),
+            uc("Send Nightly Loan Reminders", 740, 820),
+            new Box("Time", false, false, 1010, 620, 40, 60),
+            Box.caption("Time", 996, 680, 69, 32),
+            new Box("Email Service", false, false, 1010, 820, 40, 60),
+            Box.caption("Email Service", 986, 880, 88, 32));
+    List<java.awt.geom.Line2D> others =
+        Arrays.asList(
+            new java.awt.geom.Line2D.Double(899, 850, 1010, 850),
+            new java.awt.geom.Line2D.Double(539, 760, 741, 760),
+            new java.awt.geom.Line2D.Double(519, 490, 1010, 490));
+    // "every night", "every night at 22:00" (no spot beside the line fitted: the label stuck out
+    // across the edge) and "every night at 22:00 except holidays".
+    for (int w : new int[] {79, 118, 190}) {
+      Point spot =
+          LayoutCheck.labelSpot(
+              new java.awt.geom.Line2D.Double(995, 684, 849, 822), others, around, w, 16);
+      List<Box> withLabel = new java.util.ArrayList<>(around);
+      withLabel.add(Box.label(line.name, spot.x, spot.y, w, 16));
+      assertEquals("width " + w, Collections.emptyList(), check(withLabel, line));
+    }
+  }
+
   @Test
   public void captionsCountAsShapesExceptAgainstTheirOwnActor() {
     Box upper = new Box("Traffic", false, false, 100, 100, 40, 60);

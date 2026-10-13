@@ -18,8 +18,10 @@ import java.util.Set;
  * {"actors": ["Customer", "Payment Gateway"],
  *  "stereotypes": {"Payment Gateway": "system"},
  *  "useCases": ["Place Order", "Pay for Order", "Apply Promo Code"],
- *  "links": [["Customer", "Place Order"]],              primary actor - use case (plain line)
+ *  "links": [["Customer", "Place Order"],               primary actor - use case (plain line)
+ *            ["Time", "Send Reminder", "every night"]], [, label shown on the line]
  *  "calls": [["Pay for Order", "Payment Gateway"]],     use case -> secondary actor (arrow)
+ *                                                       [, label]
  *  "includes": [["Place Order", "Pay for Order"]],      base -> included
  *  "extends": [["Apply Promo Code", "Place Order", "promo code"]],  extending -> base [, point]
  *  "generalizations": [["Premium User", "Customer"]]}   child -> parent
@@ -47,12 +49,13 @@ final class UseCaseSpec {
           + "\"additionalProperties\": {\"type\": \"string\"}},\"useCases\": {\"type\": \"array\", "
           + "\"description\": \"in reading order: each actor's rows follow it\", "
           + "\"items\": {\"type\": \"string\"}},\"links\": {\"type\": \"array\", "
-          + "\"description\": \"[primaryActor, useCase]: plain line\", "
+          + "\"description\": \"[primaryActor, useCase(, label)]: plain line; the label is shown "
+          + "on it, e.g. when a Time actor triggers the use case (\\\"every night\\\")\", "
           + "\"items\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, \"minItems\": 2, "
-          + "\"maxItems\": 2}},\"calls\": {\"type\": \"array\", \"description\": \"[useCase, "
-          + "secondaryActor]: arrow at the actor\", \"items\": {\"type\": \"array\", "
+          + "\"maxItems\": 3}},\"calls\": {\"type\": \"array\", \"description\": \"[useCase, "
+          + "secondaryActor(, label)]: arrow at the actor\", \"items\": {\"type\": \"array\", "
           + "\"items\": {\"type\": \"string\"}, \"minItems\": 2, "
-          + "\"maxItems\": 2}},\"includes\": {\"type\": \"array\", \"description\": \"[base, "
+          + "\"maxItems\": 3}},\"includes\": {\"type\": \"array\", \"description\": \"[base, "
           + "included]\", \"items\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}, "
           + "\"minItems\": 2, \"maxItems\": 2}},\"extends\": {\"type\": \"array\", "
           + "\"description\": \"[extending, base, extensionPoint]\", "
@@ -90,8 +93,26 @@ final class UseCaseSpec {
       }
       spec.stereotypes.put(e.getKey(), e.getValue().asText());
     }
-    pairs(root, "links", spec.links, spec.actors, "actor", spec.useCases, "use case", 2, problems);
-    pairs(root, "calls", spec.calls, spec.useCases, "use case", spec.actors, "actor", 2, problems);
+    pairs(
+        root,
+        "links",
+        spec.links,
+        spec.actors,
+        "actor",
+        spec.useCases,
+        "use case",
+        "label",
+        problems);
+    pairs(
+        root,
+        "calls",
+        spec.calls,
+        spec.useCases,
+        "use case",
+        spec.actors,
+        "actor",
+        "label",
+        problems);
     pairs(
         root,
         "includes",
@@ -100,7 +121,7 @@ final class UseCaseSpec {
         "use case",
         spec.useCases,
         "use case",
-        2,
+        null,
         problems);
     pairs(
         root,
@@ -110,7 +131,7 @@ final class UseCaseSpec {
         "use case",
         spec.useCases,
         "use case",
-        3,
+        "point",
         problems);
     pairs(
         root,
@@ -120,7 +141,7 @@ final class UseCaseSpec {
         "actor",
         spec.actors,
         "actor",
-        2,
+        null,
         problems);
     List<String[]> deps = new ArrayList<>(spec.includes); // base -> dependent
     for (String[] e : spec.extendsList) {
@@ -198,7 +219,10 @@ final class UseCaseSpec {
     }
   }
 
-  /** Read [from, to(, optional extra)] entries whose ends must be of the given kinds. */
+  /**
+   * Read [from, to] entries whose ends must be of the given kinds, plus an optional third item
+   * named {@code extra} (null: none allowed).
+   */
   private static void pairs(
       JsonNode root,
       String key,
@@ -207,12 +231,17 @@ final class UseCaseSpec {
       String fromLabel,
       Set<String> toKind,
       String toLabel,
-      int maxSize,
+      String extra,
       List<String> problems) {
     for (JsonNode n : root.path(key)) {
-      if (!n.isArray() || n.size() < 2 || n.size() > maxSize) {
+      if (!n.isArray() || n.size() < 2 || n.size() > (extra == null ? 2 : 3)) {
         problems.add(
-            key + ": " + n + " must be [from, to" + (maxSize > 2 ? "(, point)" : "") + "]");
+            key
+                + ": "
+                + n
+                + " must be [from, to"
+                + (extra == null ? "" : "(, " + extra + ")")
+                + "]");
         continue;
       }
       String from = n.get(0).asText().trim();
