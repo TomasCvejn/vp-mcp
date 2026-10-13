@@ -6,7 +6,6 @@ import com.brunnen.vp.mcp.tool.Tool;
 import com.brunnen.vp.mcp.util.DiagramLayoutEngine;
 import com.brunnen.vp.mcp.util.DiagramUtils;
 import com.vp.plugin.DiagramManager;
-import com.vp.plugin.diagram.ICaptionUIModel;
 import com.vp.plugin.diagram.IConnectorUIModel;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramTypeConstants;
@@ -362,40 +361,55 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
       String relationshipType,
       String name) {
     try {
-      return runOnEdt(
-          () -> {
-            IUseCaseDiagramUIModel diagram =
-                requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
-            List<IRelationship> matches =
-                findUseCaseRelationships(diagram, sourceName, targetName, relationshipType);
-            if (matches.isEmpty()) {
-              return "No "
-                  + relationshipType
-                  + " found between '"
-                  + sourceName
-                  + "' and '"
-                  + targetName
-                  + "'";
-            }
-            String label = name == null ? "" : name.trim();
-            for (IRelationship rel : matches) {
-              rel.setName(label);
-            }
-            return "Named "
-                + matches.size()
-                + " "
-                + relationshipType
-                + " between '"
-                + sourceName
-                + "' and '"
-                + targetName
-                + "' to '"
-                + label
-                + "'";
-          });
+      String named = nameRelationships(diagramName, sourceName, targetName, relationshipType, name);
+      if (named.startsWith("Named")) {
+        placeLabels(diagramName); // a new or longer label stays at VP's spot otherwise
+      }
+      return named;
     } catch (Exception e) {
       return "Error naming relationship: " + e.getMessage();
     }
+  }
+
+  /** {@link #nameUseCaseRelationship} without placing the labels (buildUseCaseDiagram lays out). */
+  private String nameRelationships(
+      String diagramName,
+      String sourceName,
+      String targetName,
+      String relationshipType,
+      String name)
+      throws Exception {
+    return runOnEdt(
+        () -> {
+          IUseCaseDiagramUIModel diagram =
+              requireDiagram(diagramName, IUseCaseDiagramUIModel.class);
+          List<IRelationship> matches =
+              findUseCaseRelationships(diagram, sourceName, targetName, relationshipType);
+          if (matches.isEmpty()) {
+            return "No "
+                + relationshipType
+                + " found between '"
+                + sourceName
+                + "' and '"
+                + targetName
+                + "'";
+          }
+          String label = name == null ? "" : name.trim();
+          for (IRelationship rel : matches) {
+            rel.setName(label);
+          }
+          return "Named "
+              + matches.size()
+              + " "
+              + relationshipType
+              + " between '"
+              + sourceName
+              + "' and '"
+              + targetName
+              + "' to '"
+              + label
+              + "'";
+        });
   }
 
   /** Relationships of the given type between two named elements, matching either direction. */
@@ -500,6 +514,13 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     for (String[] c : s.calls) {
       steps.add(addRelationship(diagramName, c[0], c[1], "DirectedAssociation"));
     }
+    for (List<String[]> lines : java.util.Arrays.asList(s.links, s.calls)) {
+      for (String[] l : lines) {
+        if (l.length == 3 && !l[2].isEmpty()) {
+          steps.add(namedOrError(diagramName, l));
+        }
+      }
+    }
     for (String[] i : s.includes) {
       steps.add(addRelationship(diagramName, i[0], i[1], "Include"));
     }
@@ -540,6 +561,15 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         + checkLayout(diagramName)
         + "\ncheckUseCaseDiagram: "
         + checkUseCaseDiagram(diagramName);
+  }
+
+  /** Name a spec line's association [from, to, label]; an error becomes the step's message. */
+  private String namedOrError(String diagramName, String[] line) {
+    try {
+      return nameRelationships(diagramName, line[0], line[1], "Association", line[2]);
+    } catch (Exception e) {
+      return "Error naming relationship: " + e.getMessage();
+    }
   }
 
   @Tool(
@@ -722,55 +752,11 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
               }
             }
           });
-      String renderError = renderDiagram(diagramName);
-      if (renderError == null) {
-        runOnEdt(() -> placeRelationshipLabels(DiagramUtils.findDiagramByName(diagramName)));
-      }
+      placeLabels(diagramName);
       return placed + "\n" + boundary;
     } catch (Exception e) {
       return "Error laying out diagram: " + e.getMessage();
     }
-  }
-
-  /**
-   * Put each «include»/«extend» label beside the middle of its own line, on the side away from the
-   * other lines, so it cannot be read as another line's label. On the EDT, after rendering (routes
-   * and caption sizes are only known then).
-   */
-  private void placeRelationshipLabels(IDiagramUIModel diagram) {
-    List<IConnectorUIModel> connectors = new ArrayList<>();
-    for (IDiagramElement de : getDiagramElementsList(diagram)) {
-      if (de instanceof IConnectorUIModel && ((IConnectorUIModel) de).getPoints() != null) {
-        connectors.add((IConnectorUIModel) de);
-      }
-    }
-    // Shapes and actor names, plus each label once placed, so labels keep off all of them.
-    List<LayoutCheck.Box> obstacles = layoutBoxes(diagram);
-    for (IConnectorUIModel c : connectors) {
-      IModelElement model = c.getModelElement();
-      ICaptionUIModel cap = c.getCaptionUIModel();
-      if (!(model instanceof IInclude || model instanceof IExtend) || cap == null) {
-        continue;
-      }
-      List<java.awt.geom.Line2D> others = new ArrayList<>();
-      for (IConnectorUIModel o : connectors) {
-        java.awt.Point[] p = o.getPoints();
-        for (int k = 0; !o.getId().equals(c.getId()) && k + 1 < p.length; k++) {
-          others.add(new java.awt.geom.Line2D.Double(p[k], p[k + 1]));
-        }
-      }
-      java.awt.Point spot =
-          LayoutCheck.labelSpot(segment(c), others, obstacles, cap.getWidth(), cap.getHeight());
-      cap.setBounds(spot.x, spot.y, cap.getWidth(), cap.getHeight());
-      obstacles.add(
-          LayoutCheck.Box.label(c.getId(), spot.x, spot.y, cap.getWidth(), cap.getHeight()));
-    }
-  }
-
-  /** A connector as the straight line between its first and last point. */
-  private static java.awt.geom.Line2D segment(IConnectorUIModel c) {
-    java.awt.Point[] p = c.getPoints();
-    return new java.awt.geom.Line2D.Double(p[0], p[p.length - 1]);
   }
 
   /**
@@ -821,12 +807,17 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
     java.util.Map<String, List<String>> secondaryUseCases = new java.util.LinkedHashMap<>();
     java.util.Set<String> stereotyped = new java.util.HashSet<>();
     java.util.Set<String> right = readCheck(diagram).rightSide();
+    List<String> leftLabels = new ArrayList<>();
+    List<String> rightLabels = new ArrayList<>();
     for (IModelElement actor : actors) {
       List<String> linked = new ArrayList<>();
       for (IAssociation a : associations) {
         IModelElement other = otherEnd(a, actor);
         if (other instanceof IUseCase) {
           linked.add(other.getName());
+          if (a.getName() != null && !a.getName().trim().isEmpty()) {
+            (right.contains(actor.getName()) ? rightLabels : leftLabels).add(a.getName());
+          }
         }
       }
       (right.contains(actor.getName()) ? secondaryUseCases : actorUseCases)
@@ -841,8 +832,12 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
         extended.add(de.getModelElement().getName());
       }
     }
-    return new UseCaseLayout.Input(
-        rows, actorUseCases, secondaryUseCases, actorParent, deps, extended, stereotyped);
+    UseCaseLayout.Input input =
+        new UseCaseLayout.Input(
+            rows, actorUseCases, secondaryUseCases, actorParent, deps, extended, stereotyped);
+    input.leftGap = UseCaseLayout.actorGap(leftLabels);
+    input.rightGap = UseCaseLayout.actorGap(rightLabels);
+    return input;
   }
 
   /** Moves every use case to its planned cell. On the EDT. */
@@ -965,9 +960,10 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
             // apart.
             int boxLeft = minX - pad;
             int boxRight = maxX + pad;
-            int gap = UseCaseLayout.ACTOR_GAP;
             List<ActorSlot> leftSlots = new ArrayList<>();
             List<ActorSlot> rightSlots = new ArrayList<>();
+            List<String> leftLabels = new ArrayList<>();
+            List<String> rightLabels = new ArrayList<>();
             java.util.Set<String> right = readCheck(diagram).rightSide();
             for (IDiagramElement actorDe : actorDes) {
               IModelElement actorModel = actorDe.getModelElement();
@@ -980,6 +976,9 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                 if (ucDe != null) {
                   sum += ucDe.getY() + ucDe.getHeight() / 2;
                   count++;
+                  if (a.getName() != null && !a.getName().trim().isEmpty()) {
+                    (secondary ? rightLabels : leftLabels).add(a.getName());
+                  }
                 }
               }
               int desiredY =
@@ -988,8 +987,11 @@ public class UseCaseMcpTools extends AbstractDiagramMcpTools {
                       : sum / count - actorDe.getHeight() / 2;
               (secondary ? rightSlots : leftSlots).add(new ActorSlot(actorDe, desiredY));
             }
-            placeActorColumn(leftSlots, boxLeft - gap, true, parentOf);
-            placeActorColumn(rightSlots, boxRight + gap, false, parentOf);
+            // Room for the labels on their lines outside the boundary, as UseCaseLayout predicts.
+            placeActorColumn(
+                leftSlots, boxLeft - UseCaseLayout.actorGap(leftLabels), true, parentOf);
+            placeActorColumn(
+                rightSlots, boxRight + UseCaseLayout.actorGap(rightLabels), false, parentOf);
 
             // Moving the actors leaves their association connectors anchored at the old positions,
             // so the arrows no longer touch the actor. Re-center every association connector (in a

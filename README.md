@@ -5,6 +5,14 @@ AI applications with seamless integration to Visual Paradigm's modeling and
 diagramming modeling capabilities. The MCP server is embedded directly within
 the Visual Paradigm plugin, starting automatically when the plugin loads.
 
+## Origin
+
+This project started as
+[visual-paradigm-mcp-plugin](https://github.com/orgatex/visual-paradigm-mcp-plugin)
+by Manoel Brunnen and continued in a [fork by quant](https://github.com/thanhtrnnn/vp-mcp)
+that implemented the Visual Paradigm API calls. It was detached from that fork to develop it
+further as a proof of concept.
+
 ## Architecture
 
 - **Undertow + Jackson**: Embedded HTTP server and JSON processing for the MCP server
@@ -51,9 +59,9 @@ The plugin includes an embedded MCP server that:
 - **nameUseCaseRelationship(diagramName, sourceName, targetName, relationshipType, name)**: Name a relationship
 - **addSystemBoundary(diagramName, systemName)**: Wrap the use cases in a labeled system boundary (reuses an existing one)
 - **layoutUseCaseDiagram(diagramName, systemName)**: House-style layout in one call: use case grid, boundary, actors, lines
-- **buildUseCaseDiagram(diagramName, systemName, spec, replace)**: Create, lay out and check a whole use case diagram from one JSON spec (actors, stereotypes, useCases, links, calls, includes, extends, generalizations); the spec is validated first and nothing is created when it has problems (also a cycle); the result ends with checkLayout and checkUseCaseDiagram; `replace=true` rebuilds an existing diagram from a corrected spec
+- **buildUseCaseDiagram(diagramName, systemName, spec, replace)**: Create, lay out and check a whole use case diagram from one JSON spec (actors, stereotypes, useCases, links, calls, includes, extends, generalizations; a link or call may carry a label, e.g. the time on a Time actor's line); the spec is validated first and nothing is created when it has problems (also a cycle); the result ends with checkLayout and checkUseCaseDiagram; `replace=true` rebuilds an existing diagram from a corrected spec
 - **deleteUseCaseDiagram(diagramName)**: Delete a use case diagram with its elements; elements shown on other diagrams stay there
-- **checkUseCaseDiagram(diagramName)**: Checklist items the model answers for sure (use cases inside one named boundary, named extension points, primary actors left and secondary right, «time» on Time, arrowheads only at secondary actors, includes with one base, unused elements) plus exact counts; ground truth for the diagram reviewer
+- **checkUseCaseDiagram(diagramName)**: Checklist items the model answers for sure (use cases inside one named boundary, named extension points, primary actors left and secondary, «system» and «time» actors right, «time» on Time, arrowheads only at secondary actors, includes with one base, unused elements) plus exact counts; ground truth for the diagram reviewer
 
 ##### Class Diagram (18 tools)
 - **createClassDiagram(diagramName)**: Create new class diagrams

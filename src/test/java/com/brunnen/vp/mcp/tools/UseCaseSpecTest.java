@@ -39,8 +39,9 @@ public class UseCaseSpecTest {
             "{\"actors\": [\"Customer\", \"Payment Gateway\", \"Premium\"],"
                 + " \"stereotypes\": {\"Payment Gateway\": \"system\"},"
                 + " \"useCases\": [\"Place Order\", \"Pay for Order\", \"Apply Promo Code\"],"
-                + " \"links\": [[\"Customer\", \"Place Order\"]],"
-                + " \"calls\": [[\"Pay for Order\", \"Payment Gateway\"]],"
+                + " \"links\": [[\"Customer\", \"Place Order\"],"
+                + " [\"Premium\", \"Apply Promo Code\", \"once a month\"]],"
+                + " \"calls\": [[\"Pay for Order\", \"Payment Gateway\", \"card data\"]],"
                 + " \"includes\": [[\"Place Order\", \"Pay for Order\"]],"
                 + " \"extends\": [[\"Apply Promo Code\", \"Place Order\", \"promo code\"]],"
                 + " \"generalizations\": [[\"Premium\", \"Customer\"]]}");
@@ -50,7 +51,10 @@ public class UseCaseSpecTest {
     assertEquals(3, s.useCases.size());
     assertEquals("system", s.stereotypes.get("Payment Gateway"));
     assertArrayEquals(new String[] {"Customer", "Place Order"}, s.links.get(0));
-    assertArrayEquals(new String[] {"Pay for Order", "Payment Gateway"}, s.calls.get(0));
+    // An optional third item labels the line, e.g. when a Time actor triggers the use case.
+    assertArrayEquals(new String[] {"Premium", "Apply Promo Code", "once a month"}, s.links.get(1));
+    assertArrayEquals(
+        new String[] {"Pay for Order", "Payment Gateway", "card data"}, s.calls.get(0));
     assertArrayEquals(new String[] {"Place Order", "Pay for Order"}, s.includes.get(0));
     assertArrayEquals(
         new String[] {"Apply Promo Code", "Place Order", "promo code"}, s.extendsList.get(0));
@@ -65,7 +69,8 @@ public class UseCaseSpecTest {
                 + " \"useCases\": [\"Order\", \"Pay\"],"
                 + " \"stereotypes\": {\"Ghost\": \"system\"},"
                 + " \"links\": [[\"Pay\", \"Customer\"], [\"Customer\"]],"
-                + " \"includes\": [[\"Pay\", \"Pay\"]],"
+                + " \"includes\": [[\"Pay\", \"Pay\"], [\"Order\", \"Pay\", \"label\"]],"
+                + " \"calls\": [[\"Pay\", \"Customer\", \"a\", \"b\"]],"
                 + " \"colour\": \"blue\"}");
     assertTrue(msg, msg.contains("actors: 'Customer' listed twice"));
     assertTrue(msg, msg.contains("'Order' is both an actor and a use case"));
@@ -73,7 +78,10 @@ public class UseCaseSpecTest {
     // A link runs from a primary actor to a use case, not the other way round.
     assertTrue(msg, msg.contains("links: 'Pay' is not a declared actor"));
     assertTrue(msg, msg.contains("links: 'Customer' is not a declared use case"));
-    assertTrue(msg, msg.contains("must be [from, to]"));
+    assertTrue(msg, msg.contains("links: [\"Customer\"] must be [from, to(, label)]"));
+    assertTrue(msg, msg.contains("calls: [\"Pay\",\"Customer\",\"a\",\"b\"] must be"));
+    // Only links and calls take a label.
+    assertTrue(msg, msg.contains("includes: [\"Order\",\"Pay\",\"label\"] must be [from, to]"));
     assertTrue(msg, msg.contains("includes: 'Pay' cannot point to itself"));
     assertTrue(msg, msg.contains("unknown key 'colour'"));
   }

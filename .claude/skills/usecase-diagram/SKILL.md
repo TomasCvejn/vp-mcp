@@ -24,7 +24,8 @@ From the requirements, before calling any tool:
   **Secondary actors** are called by the system → `calls: [[useCase, actor]]`.
   An actor is never both for the same use case.
 - Another system → stereotype `"system"`; a scheduled trigger → actor `Time` with `"time"`.
-  Put the period into the use case name ("Charge Monthly Subscription", checklist BP3a).
+  Say when it runs (checklist BP3a): in the use case name ("Charge Monthly Subscription")
+  or as a label on Time's link, `["Time", "Send Loan Reminders", "every night"]`.
   Never an actor for the modelled system itself (§1.6).
 - `includes: [[base, included]]` only for behaviour shared by **two or more** bases
   (§1.11); never as functional decomposition (§1.7).

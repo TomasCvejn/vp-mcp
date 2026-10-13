@@ -16,6 +16,7 @@ import com.vp.plugin.diagram.IConnectorUIModel;
 import com.vp.plugin.diagram.IDiagramElement;
 import com.vp.plugin.diagram.IDiagramUIModel;
 import com.vp.plugin.diagram.IShapeUIModel;
+import com.vp.plugin.diagram.IUseCaseDiagramUIModel;
 import com.vp.plugin.diagram.connector.IHasRoleConnectorUIModel;
 import com.vp.plugin.model.IActor;
 import com.vp.plugin.model.IAssociation;
@@ -451,6 +452,9 @@ public abstract class AbstractDiagramMcpTools {
                       .append(from)
                       .append(" -> ")
                       .append(to);
+                  if (name != null && !name.trim().isEmpty()) {
+                    sb.append(" \"").append(name).append("\""); // e.g. Time's "every night"
+                  }
                   if (model instanceof IAssociation) {
                     IAssociationEnd toEnd = (IAssociationEnd) ((IAssociation) model).getToEnd();
                     if (toEnd != null && toEnd.getMultiplicity() != null) {
@@ -674,10 +678,9 @@ public abstract class AbstractDiagramMcpTools {
               String to = c.getToShape().getModelElement().getName();
               String name = model.getModelType() + " " + from + " -> " + to;
               lines.add(new LayoutCheck.Line(name, from, to, points));
-              // ponytail: only «include»/«extend» labels so far (placed by layoutUseCaseDiagram);
-              // class diagram labels have their own placement (layoutConnectorLabels).
+              // Class diagram labels have their own placement (layoutConnectorLabels).
               ICaptionUIModel cap = c.getCaptionUIModel();
-              if (cap != null && (model instanceof IInclude || model instanceof IExtend)) {
+              if (cap != null && placedLabel(diagram, model)) {
                 boxes.add(
                     LayoutCheck.Box.label(
                         name, cap.getX(), cap.getY(), cap.getWidth(), cap.getHeight()));
@@ -689,6 +692,83 @@ public abstract class AbstractDiagramMcpTools {
     } catch (Exception e) {
       return "Error checking layout: " + e.getMessage();
     }
+  }
+
+  /**
+   * Render the diagram, then put each label ({@link #placedLabel}) beside the middle of its own
+   * line. Moving a shape or renaming a relationship leaves a label at VP's spot below-right of the
+   * middle, where it can sit on another line or on the boundary edge. Not on the EDT; nothing is
+   * rendered when the diagram has no such label.
+   */
+  protected void placeLabels(String diagramName) throws Exception {
+    boolean any =
+        runOnEdt(
+            () -> {
+              IDiagramUIModel diagram = DiagramUtils.findDiagramByName(diagramName);
+              for (IDiagramElement de : getDiagramElementsList(diagram)) {
+                if (de instanceof IConnectorUIModel && placedLabel(diagram, de.getModelElement())) {
+                  return true;
+                }
+              }
+              return false;
+            });
+    if (any && renderDiagram(diagramName) == null) {
+      runOnEdt(() -> placeRelationshipLabels(DiagramUtils.findDiagramByName(diagramName)));
+    }
+  }
+
+  /**
+   * Put each label ({@link #placedLabel}) beside the middle of its own line, on the side away from
+   * the other lines, so it cannot be read as another line's label. On the EDT, after rendering
+   * (routes and caption sizes are only known then).
+   */
+  private void placeRelationshipLabels(IDiagramUIModel diagram) {
+    List<IConnectorUIModel> connectors = new ArrayList<>();
+    for (IDiagramElement de : getDiagramElementsList(diagram)) {
+      if (de instanceof IConnectorUIModel && ((IConnectorUIModel) de).getPoints() != null) {
+        connectors.add((IConnectorUIModel) de);
+      }
+    }
+    // Shapes and actor names, plus each label once placed, so labels keep off all of them.
+    List<LayoutCheck.Box> obstacles = layoutBoxes(diagram);
+    for (IConnectorUIModel c : connectors) {
+      IModelElement model = c.getModelElement();
+      ICaptionUIModel cap = c.getCaptionUIModel();
+      if (!placedLabel(diagram, model) || cap == null) {
+        continue;
+      }
+      List<java.awt.geom.Line2D> others = new ArrayList<>();
+      for (IConnectorUIModel o : connectors) {
+        Point[] p = o.getPoints();
+        for (int k = 0; !o.getId().equals(c.getId()) && k + 1 < p.length; k++) {
+          others.add(new java.awt.geom.Line2D.Double(p[k], p[k + 1]));
+        }
+      }
+      Point spot =
+          LayoutCheck.labelSpot(segment(c), others, obstacles, cap.getWidth(), cap.getHeight());
+      cap.setBounds(spot.x, spot.y, cap.getWidth(), cap.getHeight());
+      obstacles.add(
+          LayoutCheck.Box.label(c.getId(), spot.x, spot.y, cap.getWidth(), cap.getHeight()));
+    }
+  }
+
+  /** A connector as the straight line between its first and last point. */
+  private static java.awt.geom.Line2D segment(IConnectorUIModel c) {
+    Point[] p = c.getPoints();
+    return new java.awt.geom.Line2D.Double(p[0], p[p.length - 1]);
+  }
+
+  /**
+   * A connector label layoutUseCaseDiagram places beside its line and checkLayout checks:
+   * «include»/«extend», and on a use case diagram a named association (e.g. Time's "every night").
+   */
+  static boolean placedLabel(IDiagramUIModel diagram, IModelElement model) {
+    return model instanceof IInclude
+        || model instanceof IExtend
+        || (diagram instanceof IUseCaseDiagramUIModel
+            && model instanceof IAssociation
+            && model.getName() != null
+            && !model.getName().trim().isEmpty());
   }
 
   /**
@@ -1200,21 +1280,25 @@ public abstract class AbstractDiagramMcpTools {
       name = "rerouteConnectors",
       description =
           "Re-anchor every connector of a diagram to the centers of its shapes (straight"
-              + " center-to-center lines); run after moving shapes")
+              + " center-to-center lines) and put «include»/«extend» and named association labels"
+              + " beside their lines again; run after moving shapes")
   public String rerouteConnectors(String diagramName) {
     try {
-      return runOnEdt(
-          () -> {
-            IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
-            int count = 0;
-            for (IDiagramElement de : getDiagramElementsList(diagram)) {
-              if (de instanceof IConnectorUIModel) {
-                centerConnector((IConnectorUIModel) de);
-                count++;
-              }
-            }
-            return "Rerouted " + count + " connector(s) on '" + diagramName + "'";
-          });
+      String rerouted =
+          runOnEdt(
+              () -> {
+                IDiagramUIModel diagram = requireDiagram(diagramName, IDiagramUIModel.class);
+                int count = 0;
+                for (IDiagramElement de : getDiagramElementsList(diagram)) {
+                  if (de instanceof IConnectorUIModel) {
+                    centerConnector((IConnectorUIModel) de);
+                    count++;
+                  }
+                }
+                return "Rerouted " + count + " connector(s) on '" + diagramName + "'";
+              });
+      placeLabels(diagramName); // centerConnector reset them to VP's spot
+      return rerouted;
     } catch (Exception e) {
       return "Error rerouting connectors: " + e.getMessage();
     }

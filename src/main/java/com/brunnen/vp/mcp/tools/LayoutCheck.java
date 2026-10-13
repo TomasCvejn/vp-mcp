@@ -91,6 +91,8 @@ final class LayoutCheck {
   private static final float GRAZE = 2f;
   // Gap between a relationship label and its own line.
   private static final int LABEL_GAP = 4;
+  // Where along its line a label is tried: the middle first, then ever farther from it.
+  private static final double[] SPOTS_ALONG = {0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8};
 
   private LayoutCheck() {}
 
@@ -150,14 +152,15 @@ final class LayoutCheck {
    * first, then beside 40 %, 60 %, 30 %, ... of the line, the side farther from the {@code others}
    * first; the first free spot whose own line is clearly the nearest (by 12 px) wins, a label
    * nearer another line read as that line's. Failing that, the free spot where its own line is
-   * nearest relative to the others; failing that, beside the middle.
+   * nearest relative to the others; failing that, a free {@link #axisSpot}; failing that, beside
+   * the middle.
    *
    * @return the label's top-left corner
    */
   static Point labelSpot(Line2D own, List<Line2D> others, List<Box> obstacles, int w, int h) {
     Point best = labelSpotAt(own, 0.5, others, w, h, false);
     double bestMargin = Double.NEGATIVE_INFINITY;
-    for (double t : new double[] {0.5, 0.4, 0.6, 0.3, 0.7, 0.2, 0.8}) {
+    for (double t : SPOTS_ALONG) {
       for (boolean otherSide : new boolean[] {false, true}) {
         Point spot = labelSpotAt(own, t, others, w, h, otherSide);
         if (!free(new Rectangle2D.Double(spot.x, spot.y, w, h), others, obstacles)) {
@@ -179,7 +182,51 @@ final class LayoutCheck {
         }
       }
     }
+    if (bestMargin == Double.NEGATIVE_INFINITY) {
+      Point aside = axisSpot(own, others, obstacles, w, h);
+      if (aside != null) {
+        return aside;
+      }
+    }
     return best;
+  }
+
+  /**
+   * A free spot with the label left or right of a steep line, or above or below a flat one, just
+   * clear of it. Pushed out along the normal, a wide label beside a diagonal line spreads to both
+   * sides: across the boundary edge an actor's line crosses (City Library: "every night at 22:00"
+   * on Time's line). Null when none is free.
+   */
+  private static Point axisSpot(
+      Line2D own, List<Line2D> others, List<Box> obstacles, int w, int h) {
+    double dx = own.getX2() - own.getX1();
+    double dy = own.getY2() - own.getY1();
+    boolean steep = Math.abs(dy) >= Math.abs(dx);
+    for (double t : SPOTS_ALONG) {
+      double px = own.getX1() + t * dx;
+      double py = own.getY1() + t * dy;
+      List<Point> spots = new ArrayList<>();
+      for (boolean sideways : new boolean[] {steep, !steep}) {
+        if (sideways && Math.abs(dy) >= 1) {
+          // Left or right, vertically centered: clear of the line over the label's height.
+          double clear = h / 2.0 * Math.abs(dx / dy) + LABEL_GAP;
+          int y = (int) Math.round(py - h / 2.0);
+          spots.add(new Point((int) Math.round(px - clear - w), y));
+          spots.add(new Point((int) Math.round(px + clear), y));
+        } else if (!sideways && Math.abs(dx) >= 1) {
+          double clear = w / 2.0 * Math.abs(dy / dx) + LABEL_GAP;
+          int x = (int) Math.round(px - w / 2.0);
+          spots.add(new Point(x, (int) Math.round(py - clear - h)));
+          spots.add(new Point(x, (int) Math.round(py + clear)));
+        }
+      }
+      for (Point spot : spots) {
+        if (free(new Rectangle2D.Double(spot.x, spot.y, w, h), others, obstacles)) {
+          return spot;
+        }
+      }
+    }
+    return null;
   }
 
   private static boolean free(Rectangle2D label, List<Line2D> others, List<Box> obstacles) {
@@ -189,9 +236,18 @@ final class LayoutCheck {
       }
     }
     Area area = new Area(label);
+    Rectangle2D grown =
+        new Rectangle2D.Double(
+            label.getX() - LABEL_GAP,
+            label.getY() - LABEL_GAP,
+            label.getWidth() + 2 * LABEL_GAP,
+            label.getHeight() + 2 * LABEL_GAP);
     for (Box box : obstacles) {
-      // Kept LABEL_GAP off: checkLayout tests overlaps exactly, and VP may resize a label.
-      if (!box.container && intersect(area, box.area(-LABEL_GAP))) {
+      // Kept LABEL_GAP off: checkLayout tests overlaps exactly, and VP may resize a label. A
+      // label of an actor's line must not straddle the boundary edge the line crosses either.
+      if (box.container
+          ? box.bounds.intersects(grown) && !box.bounds.contains(grown)
+          : intersect(area, box.area(-LABEL_GAP))) {
         return false;
       }
     }
