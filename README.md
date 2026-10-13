@@ -9,7 +9,7 @@ the Visual Paradigm plugin, starting automatically when the plugin loads.
 
 This project started as
 [visual-paradigm-mcp-plugin](https://github.com/orgatex/visual-paradigm-mcp-plugin)
-by Manoel Brunnen and continued in a [fork by quant](https://github.com/thanhtrnnn/vp-mcp)
+by Manoel Brunnen and continued in a [fork by thanhtrnnn](https://github.com/thanhtrnnn/vp-mcp)
 that implemented the Visual Paradigm API calls. It was detached from that fork to develop it
 further as a proof of concept.
 
